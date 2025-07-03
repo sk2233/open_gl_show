@@ -14,7 +14,6 @@ func TestMesh(t *testing.T) {
 	shader.Use()
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(16)/9, 0.1, 30.0)
 	shader.SetMat4("projection", projection)
-	shader.SetF3("lightPos", mgl32.Vec3{3, 3, 3})
 	//outlineShader := LoadShader("outline")
 	//outlineShader.Use()
 	//outlineShader.SetF3("Color", mgl32.Vec3{1, 0, 0})
@@ -42,7 +41,6 @@ func TestMesh(t *testing.T) {
 		//gl.Enable(gl.DEPTH_TEST)
 		shader.Use()
 		shader.SetMat4("view", camera.GetView())
-		shader.SetF3("viewPos", camera.Pos)
 		for _, mesh := range meshes {
 			shader.SetMat4("model", mesh.Model)
 			mesh.Texture.Bind(gl.TEXTURE0)
