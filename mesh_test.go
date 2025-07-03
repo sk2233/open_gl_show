@@ -15,6 +15,10 @@ func TestMesh(t *testing.T) {
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(16)/9, 0.1, 30.0)
 	shader.SetMat4("projection", projection)
 	shader.SetF3("lightPos", mgl32.Vec3{3, 3, 3})
+	//outlineShader := LoadShader("outline")
+	//outlineShader.Use()
+	//outlineShader.SetF3("Color", mgl32.Vec3{1, 0, 0})
+	//outlineShader.SetMat4("projection", projection)
 
 	meshes := LoadMeshes("nina/scene.gltf")
 
@@ -27,6 +31,15 @@ func TestMesh(t *testing.T) {
 
 		camera.Update(window)
 
+		//gl.Disable(gl.DEPTH_TEST)
+		//outlineShader.Use()
+		//outlineShader.SetMat4("view", camera.GetView())
+		//for _, mesh := range meshes {
+		//	outlineShader.SetMat4("model", mesh.Model)
+		//	mesh.Vao.Bind()
+		//	mesh.Vao.DrawIndic(mesh.Mode)
+		//}
+		//gl.Enable(gl.DEPTH_TEST)
 		shader.Use()
 		shader.SetMat4("view", camera.GetView())
 		shader.SetF3("viewPos", camera.Pos)
