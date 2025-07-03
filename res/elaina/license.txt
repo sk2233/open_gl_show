@@ -1,0 +1,11 @@
+Model Information:
+* title:	Elaina Heart Pose
+* source:	https://sketchfab.com/3d-models/elaina-heart-pose-6a91694f588e4aa3b45305499742e5b8
+* author:	Gintoki1234 (https://sketchfab.com/Gintoki1234)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Elaina Heart Pose" (https://sketchfab.com/3d-models/elaina-heart-pose-6a91694f588e4aa3b45305499742e5b8) by Gintoki1234 (https://sketchfab.com/Gintoki1234) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
