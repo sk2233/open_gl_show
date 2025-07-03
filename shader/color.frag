@@ -13,7 +13,7 @@ void main() {
     vec3 color = texture(Texture, TexCoords).rgb;
 
     // ambient
-    vec3 ambient = 0.5 * color;
+    vec3 ambient = 0.3 * color;
 
     // diffuse
     vec3 lightDir = normalize(lightPos - FragPos);
@@ -28,5 +28,4 @@ void main() {
     vec3 specular = vec3(0.3) * spec; // assuming bright white light color
 
     FragColor = vec4(ambient + diffuse + specular, 1.0);
-    FragColor=vec4(color,1);
 }
