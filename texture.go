@@ -10,12 +10,17 @@ import (
 )
 
 type Texture struct {
-	Texture uint32
+	Texture   uint32
+	IsCubeMap bool
 }
 
 func (t *Texture) Bind(texture uint32) {
 	gl.ActiveTexture(texture)
-	gl.BindTexture(gl.TEXTURE_2D, t.Texture)
+	if t.IsCubeMap {
+		gl.BindTexture(gl.TEXTURE_CUBE_MAP, t.Texture)
+	} else {
+		gl.BindTexture(gl.TEXTURE_2D, t.Texture)
+	}
 }
 
 var (
@@ -49,7 +54,8 @@ func LoadTexture(name string) *Texture {
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba.Rect.Size().X), int32(rgba.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 	return &Texture{
-		Texture: texture,
+		Texture:   texture,
+		IsCubeMap: false,
 	}
 }
 
@@ -66,6 +72,31 @@ func LoadTextureWithSampler(name string, minFilter int32, magFilter int32, wrapS
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba.Rect.Size().X), int32(rgba.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 	return &Texture{
-		Texture: texture,
+		Texture:   texture,
+		IsCubeMap: false,
+	}
+}
+
+func LoadCubeMap(names ...string) *Texture { // 必须是 6 张
+	if len(names) != 6 {
+		panic("cube map must 6 img")
+	}
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+	// 添加图片
+	for i := uint32(0); i < 6; i++ {
+		rgba := loadImage(names[i])
+		gl.TexImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, gl.RGBA, int32(rgba.Rect.Size().X), int32(rgba.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+	}
+	// 设置选项
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+	return &Texture{
+		Texture:   texture,
+		IsCubeMap: true,
 	}
 }

@@ -7,16 +7,15 @@ import (
 	"testing"
 )
 
-var planVertices = []float32{
-	-1.0, -1.0, -1.0, 0.0, 0.0, // 0
-	1.0, -1.0, -1.0, 1.0, 0.0, // 1
-	-1.0, -1.0, 1.0, 0.0, 1.0, // 2
-	1.0, -1.0, 1.0, 1.0, 1.0, //  3
-}
-
-var planIndies = []uint32{0, 1, 2, 1, 3, 2}
-
 func TestIndic(t *testing.T) {
+	var planVertices = []float32{
+		-1.0, -1.0, -1.0, 0.0, 0.0, // 0
+		1.0, -1.0, -1.0, 1.0, 0.0, // 1
+		-1.0, -1.0, 1.0, 0.0, 1.0, // 2
+		1.0, -1.0, 1.0, 1.0, 1.0, //  3
+	}
+	var planIndies = []uint32{0, 1, 2, 1, 3, 2}
+
 	window := NewWindow(800, 600, "Test")
 
 	shader := LoadShader("test")
