@@ -10,6 +10,7 @@ import (
 
 type Vao struct {
 	Vao        uint32
+	Mode       uint32
 	IndicSize  int32
 	PointCount int32
 }
@@ -18,21 +19,21 @@ func (v *Vao) Bind() {
 	gl.BindVertexArray(v.Vao)
 }
 
-func (v *Vao) Draw(mode uint32) {
+func (v *Vao) Draw() {
 	if v.PointCount <= 0 {
 		panic("vao not has point")
 	}
-	gl.DrawArrays(mode, 0, v.PointCount)
+	gl.DrawArrays(v.Mode, 0, v.PointCount)
 }
 
-func (v *Vao) DrawIndic(mode uint32) {
+func (v *Vao) DrawIndic() {
 	if v.IndicSize <= 0 {
 		panic("vao not has indic")
 	}
-	gl.DrawElements(mode, v.IndicSize, gl.UNSIGNED_INT, nil)
+	gl.DrawElements(v.Mode, v.IndicSize, gl.UNSIGNED_INT, nil)
 }
 
-func NewVao(data []float32, sizes ...int32) *Vao {
+func NewVao(data []float32, mode uint32, sizes ...int32) *Vao {
 	// 创建对象&写入数据
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
@@ -57,12 +58,13 @@ func NewVao(data []float32, sizes ...int32) *Vao {
 	}
 	return &Vao{
 		Vao:        vao,
+		Mode:       mode,
 		IndicSize:  0,
 		PointCount: int32(len(data)) / sum,
 	}
 }
 
-func NewVaoWithIndic(data []float32, indices []uint32, sizes ...int32) *Vao {
+func NewVaoWithIndic(data []float32, indices []uint32, mode uint32, sizes ...int32) *Vao {
 	// 创建对象&写入数据
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
@@ -91,6 +93,7 @@ func NewVaoWithIndic(data []float32, indices []uint32, sizes ...int32) *Vao {
 	}
 	return &Vao{
 		Vao:        vao,
+		Mode:       mode,
 		IndicSize:  int32(len(indices)),
 		PointCount: 0,
 	}
@@ -131,7 +134,7 @@ func LoadObj(path string) *Vao {
 			}
 		}
 	}
-	return NewVao(data, 3, 3, 2)
+	return NewVao(data, gl.TRIANGLES, 3, 3, 2)
 }
 
 func parseFloat(line string) []float32 {

@@ -19,7 +19,7 @@ func (s *Shader) Use() {
 
 func (s *Shader) getUniformLoc(name string) int32 {
 	if _, ok := s.UniformMap[name]; !ok {
-		s.UniformMap[name] = gl.GetUniformLocation(s.Program, gl.Str(name+"\x00"))
+		s.UniformMap[name] = gl.GetUniformLocation(s.Program, gl.Str(name+"\x00")) // c 字符串需要这个结束标识
 	}
 	return s.UniformMap[name]
 }
@@ -39,6 +39,11 @@ func (s *Shader) SetF3(name string, val mgl32.Vec3) {
 	gl.Uniform3f(uniformLoc, val[0], val[1], val[2])
 }
 
+func (s *Shader) SetF1(name string, val float32) {
+	uniformLoc := s.getUniformLoc(name)
+	gl.Uniform1f(uniformLoc, val)
+}
+
 func (s *Shader) SetI1(name string, val int32) {
 	uniformLoc := s.getUniformLoc(name)
 	gl.Uniform1i(uniformLoc, val)
@@ -47,9 +52,8 @@ func (s *Shader) SetI1(name string, val int32) {
 func loadShader(path string, shaderType uint32) uint32 {
 	bs, err := os.ReadFile(path)
 	HandleErr(err)
-	bs = append(bs, 0) // c 需要这个结束标识
 	shader := gl.CreateShader(shaderType)
-	cStr, free := gl.Strs(string(bs))
+	cStr, free := gl.Strs(string(bs) + "\x00") // c 字符串需要这个结束标识
 	gl.ShaderSource(shader, 1, cStr, nil)
 	free()
 	gl.CompileShader(shader)
@@ -67,7 +71,7 @@ func loadShader(path string, shaderType uint32) uint32 {
 }
 
 func LoadShader(name string) *Shader {
-	// 顶点着色器与片源着色器一定是要有的  TODO 看看几何着色器是否有需要
+	// 顶点着色器与片源着色器一定是要有的
 	vertShader := loadShader(BasePath+ShaderPath+name+VertName, gl.VERTEX_SHADER)
 	fragShader := loadShader(BasePath+ShaderPath+name+FragName, gl.FRAGMENT_SHADER)
 	// 链接着色器

@@ -25,7 +25,7 @@ func TestMesh(t *testing.T) {
 	camera := NewCamera()
 
 	for !window.ShouldClose() {
-		gl.ClearColor(0.1, 0.1, 0.1, 1.0)
+		gl.ClearColor(0.3, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		camera.Update(window)
@@ -37,7 +37,7 @@ func TestMesh(t *testing.T) {
 		for _, mesh := range meshes {
 			outlineShader.SetMat4("Model", mesh.Model)
 			mesh.Vao.Bind()
-			mesh.Vao.DrawIndic(mesh.Mode)
+			mesh.Vao.DrawIndic()
 		}
 		// 正常绘制对象
 		gl.Enable(gl.DEPTH_TEST)
@@ -46,9 +46,18 @@ func TestMesh(t *testing.T) {
 		shader.SetF3("ViewPos", camera.Pos)
 		for _, mesh := range meshes {
 			shader.SetMat4("Model", mesh.Model)
-			mesh.Texture.Bind(gl.TEXTURE0)
+			if mesh.Material.BaseTexture == nil {
+				if mesh.Name == "Face_OH_Outline_Material_0" {
+					continue
+				}
+				shader.SetF4("Color", *mesh.Material.BaseColor)
+				shader.SetI1("UseColor", gl.TRUE)
+			} else {
+				mesh.Material.BaseTexture.Bind(gl.TEXTURE0)
+				shader.SetI1("UseColor", gl.FALSE)
+			}
 			mesh.Vao.Bind()
-			mesh.Vao.DrawIndic(mesh.Mode)
+			mesh.Vao.DrawIndic()
 		}
 
 		window.SwapBuffers()

@@ -8,9 +8,14 @@ in vec2 TexCoords; // 纹理坐标
 uniform sampler2D Texture;
 uniform vec3 LightPos;
 uniform vec3 ViewPos;
+uniform vec4 Color;
+uniform bool UseColor;
 
 void main() {
     vec3 color = texture(Texture, TexCoords).rgb;
+    if(UseColor){
+        color=Color.rgb;
+    }
 
     // ambient
     vec3 ambient = 0.5 * color;

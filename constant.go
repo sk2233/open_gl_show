@@ -1,6 +1,9 @@
 package main
 
-import "github.com/go-gl/mathgl/mgl32"
+import (
+	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
+)
 
 const (
 	BasePath   = "/Users/sky/Documents/go/open_gl_show/"
@@ -15,4 +18,25 @@ var (
 	VecUp    = mgl32.Vec3{0, 1, 0}
 	VecRight = mgl32.Vec3{1, 0, 0}
 	VecZero  = mgl32.Vec3{0, 0, 0}
+)
+
+type DataType string
+
+func (d DataType) GetSize() int {
+	switch d {
+	case DataVec3:
+		return 3
+	case DataVec2:
+		return 2
+	case DataScalar:
+		return 1
+	default:
+		panic(fmt.Sprintf("unknown DataType %v", d))
+	}
+}
+
+const (
+	DataVec3   DataType = "VEC3"
+	DataVec2   DataType = "VEC2"
+	DataScalar DataType = "SCALAR"
 )

@@ -28,7 +28,7 @@ func TestIndic(t *testing.T) {
 
 	texture := LoadTexture("square.png")
 
-	vao := NewVaoWithIndic(planVertices, planIndies, 3, 2)
+	vao := NewVaoWithIndic(planVertices, planIndies, gl.TRIANGLES, 3, 2)
 
 	gl.Enable(gl.DEPTH_TEST)
 	for !window.ShouldClose() {
@@ -40,7 +40,7 @@ func TestIndic(t *testing.T) {
 		shader.SetMat4("model", model)
 		texture.Bind(gl.TEXTURE0)
 		vao.Bind()
-		vao.DrawIndic(gl.TRIANGLES)
+		vao.DrawIndic()
 
 		window.SwapBuffers()
 		glfw.PollEvents()

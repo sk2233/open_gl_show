@@ -20,7 +20,7 @@ func TestTest(t *testing.T) {
 
 	texture := LoadTexture("square.png")
 
-	vao := NewVao(cubeVT, 3, 2)
+	vao := NewVao(cubeVT, gl.TRIANGLES, 3, 2)
 
 	gl.Enable(gl.DEPTH_TEST)
 	for !window.ShouldClose() {
@@ -32,7 +32,7 @@ func TestTest(t *testing.T) {
 		shader.SetMat4("model", model)
 		texture.Bind(gl.TEXTURE0)
 		vao.Bind()
-		vao.Draw(gl.TRIANGLES)
+		vao.Draw()
 
 		window.SwapBuffers()
 		glfw.PollEvents()

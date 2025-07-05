@@ -1,4 +1,5 @@
 > 格式参考：https://blog.csdn.net/qq_22642239/article/details/129752911
+> 格式参考：https://blog.csdn.net/tianyapai/article/details/126524593
 # Scene
 # Scenes
 Scenes[Scene].Nodes
@@ -34,3 +35,9 @@ Source：存储 Images 的下标<br>
 一些贴图纹理属性
 # Images
 一些图片信息，URI：具体图片位置
+# 主要贴图
+xxx_BaseColor 颜色贴图<br>
+xxx_MetallicRoughness 金属度(B)粗糙度(G)贴图<br>
+xxx_Normal 法线贴图<br>
+xxx_Emissive 自发光贴图<br>
+xxx_Occlusion OA环境遮罩贴图存储在 R 通道<br>

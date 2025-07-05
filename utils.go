@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"runtime"
@@ -51,4 +52,13 @@ func GetAxis(window *glfw.Window, min, max glfw.Key) float32 {
 		return 1
 	}
 	return 0
+}
+
+func GetDataSize(dataType uint32) int {
+	switch dataType {
+	case gl.FLOAT, gl.UNSIGNED_INT:
+		return 4
+	default:
+		panic(fmt.Sprintf("unknown dataType %v", dataType))
+	}
 }
