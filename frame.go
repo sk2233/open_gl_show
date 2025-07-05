@@ -39,7 +39,42 @@ func CreateFrame(width, height int32) *Frame {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 	return &Frame{
 		FrameBuff:  frameBuff,
-		Texture:    &Texture{Texture: texture},
+		Texture:    &Texture{Texture: texture, IsCubeMap: false},
+		RenderBuff: renderBuff,
+	}
+}
+
+func CreateCubeFrame(width, height int32) *Frame {
+	var frameBuff uint32
+	gl.GenFramebuffers(1, &frameBuff)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, frameBuff)
+	// 设置纹理信息
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+	for i := uint32(0); i < 6; i++ {
+		gl.TexImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X+i, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, nil)
+	}
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP, texture, 0)
+	// 深度信息 与模版信息 附件
+	var renderBuff uint32
+	gl.GenRenderbuffers(1, &renderBuff)
+	gl.BindRenderbuffer(gl.RENDERBUFFER, renderBuff)
+	gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, width, height)
+	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, renderBuff)
+	// 还原绘制目标
+	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE {
+		panic("CreateFrame err")
+	}
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	return &Frame{
+		FrameBuff:  frameBuff,
+		Texture:    &Texture{Texture: texture, IsCubeMap: true},
 		RenderBuff: renderBuff,
 	}
 }

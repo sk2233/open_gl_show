@@ -14,4 +14,5 @@ var (
 	VecFront = mgl32.Vec3{0, 0, -1}
 	VecUp    = mgl32.Vec3{0, 1, 0}
 	VecRight = mgl32.Vec3{1, 0, 0}
+	VecZero  = mgl32.Vec3{0, 0, 0}
 )

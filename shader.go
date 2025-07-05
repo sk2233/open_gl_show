@@ -47,6 +47,7 @@ func (s *Shader) SetI1(name string, val int32) {
 func loadShader(path string, shaderType uint32) uint32 {
 	bs, err := os.ReadFile(path)
 	HandleErr(err)
+	bs = append(bs, 0) // c 需要这个结束标识
 	shader := gl.CreateShader(shaderType)
 	cStr, free := gl.Strs(string(bs))
 	gl.ShaderSource(shader, 1, cStr, nil)
