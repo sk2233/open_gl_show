@@ -18,17 +18,14 @@ func TestFrame(t *testing.T) {
 	shader.SetI1("Texture", 0)
 	shader.SetI1("Diffuse", 1)
 	shader.SetI1("Specular", 2)
-	quadShader := LoadShader("quad")
 	skyShader := LoadShader("sky")
 	skyShader.Use()
 	skyShader.SetMat4("Projection", projection)
 	skyShader.SetMat4("Model", mgl32.Scale3D(50, 50, 50))
 
-	meshes := LoadMeshes("nina/scene.gltf")
-	quadVao := NewVao(quadVT, gl.TRIANGLE_STRIP, 3, 2)
+	meshes := LoadMeshes("gun/scene.gltf")
 	skyVao := NewVao(cubeV, gl.TRIANGLES, 3)
 
-	frame := CreateFrame(1280*2, 720*2)
 	camera := NewCamera()
 	skyCube := LoadCubeMap("cube/right.jpg", "cube/left.jpg", "cube/top.jpg", "cube/bottom.jpg", "cube/front.jpg", "cube/back.jpg")
 	diffuseCube := createSamplerCube(skyVao, skyCube, "diffuse")   //漫反射采样
@@ -38,7 +35,6 @@ func TestFrame(t *testing.T) {
 	for !window.ShouldClose() {
 		camera.Update(window)
 
-		frame.Use()
 		gl.ClearColor(0.1, 0.1, 0.1, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		skyShader.Use()
@@ -54,21 +50,17 @@ func TestFrame(t *testing.T) {
 		diffuseCube.Bind(gl.TEXTURE1)
 		specularCube.Bind(gl.TEXTURE2)
 		for _, mesh := range meshes {
-			shader.SetMat4("Model", mesh.Model)
-			//shader.SetF1("Metallic", mesh.Metallic)
-			//shader.SetF1("Roughness", mesh.Roughness)
-			//mesh.Texture.Bind(gl.TEXTURE0)
+			material := mesh.Material
+			shader.SetMat4("Model", mesh.Model.Mul4(mgl32.Scale3D(0.1, 0.1, 0.1)))
+			shader.SetF1("Metallic", Elem(material.Metallic, 0))
+			shader.SetF1("Roughness", Elem(material.Roughness, 1))
+			if material.BaseTexture == nil {
+				continue
+			}
+			mesh.Material.BaseTexture.Bind(gl.TEXTURE0)
 			mesh.Vao.Bind()
 			mesh.Vao.DrawIndic()
 		}
-
-		gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
-		gl.ClearColor(0.1, 0.1, 0.1, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		quadShader.Use()
-		frame.Texture.Bind(gl.TEXTURE0)
-		quadVao.Bind()
-		quadVao.Draw()
 
 		window.SwapBuffers()
 		glfw.PollEvents()
@@ -97,6 +89,7 @@ func createSamplerCube(vao *Vao, cube *Texture, name string) *Texture {
 		vao.Bind()
 		vao.Draw()
 	}
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 	gl.Viewport(0, 0, 1280*2, 720*2) // 恢复渲染窗口
 	return frame.Texture
 }

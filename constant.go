@@ -24,6 +24,8 @@ type DataType string
 
 func (d DataType) GetSize() int {
 	switch d {
+	case DataVec4:
+		return 4
 	case DataVec3:
 		return 3
 	case DataVec2:
@@ -36,6 +38,7 @@ func (d DataType) GetSize() int {
 }
 
 const (
+	DataVec4   DataType = "VEC4"
 	DataVec3   DataType = "VEC3"
 	DataVec2   DataType = "VEC2"
 	DataScalar DataType = "SCALAR"

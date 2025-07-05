@@ -96,7 +96,7 @@ func loadMesh(mesh *PrimitiveData, name string, gltf *GlTFData, subPath string, 
 	temp = append(temp, load4FData(mesh.Attributes["TEXCOORD_0"], gltf, subPath))
 	if _, ok := mesh.Attributes["TANGENT"]; ok { // TODO 切线数据大小
 		temp = append(temp, load4FData(mesh.Attributes["TANGENT"], gltf, subPath))
-		sizes = append(sizes, 3)
+		sizes = append(sizes, 4)
 	}
 	indData := loadU4IData(mesh.Indices, gltf, subPath)
 	data := mergeData(temp, sizes)
