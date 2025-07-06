@@ -15,9 +15,13 @@ func TestFrame(t *testing.T) {
 	shader.Use()
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(16)/9, 0.1, 100.0)
 	shader.SetMat4("Projection", projection)
-	shader.SetI1("Texture", 0)
-	shader.SetI1("Diffuse", 1)
-	shader.SetI1("Specular", 2)
+	shader.SetI1("BaseTex", 0)
+	shader.SetI1("DiffuseTex", 1)
+	shader.SetI1("SpecularTex", 2)
+	shader.SetI1("MetallicRoughnessTex", 3)
+	shader.SetI1("EmissiveTex", 4)
+	shader.SetI1("OcclusionTex", 5)
+	shader.SetI1("NormalTex", 6)
 	skyShader := LoadShader("sky")
 	skyShader.Use()
 	skyShader.SetMat4("Projection", projection)
@@ -52,12 +56,11 @@ func TestFrame(t *testing.T) {
 		for _, mesh := range meshes {
 			material := mesh.Material
 			shader.SetMat4("Model", mesh.Model.Mul4(mgl32.Scale3D(10, 10, 10)))
-			shader.SetF1("Metallic", Elem(material.Metallic, 0))
-			shader.SetF1("Roughness", Elem(material.Roughness, 1))
-			if material.BaseTexture == nil {
-				continue
-			}
-			mesh.Material.BaseTexture.Bind(gl.TEXTURE0)
+			material.BaseTexture.Bind(gl.TEXTURE0)
+			material.MetallicRoughnessTexture.Bind(gl.TEXTURE3)
+			material.EmissiveTexture.Bind(gl.TEXTURE4)
+			material.OcclusionTexture.Bind(gl.TEXTURE5)
+			material.NormalTexture.Bind(gl.TEXTURE6)
 			mesh.Vao.Bind()
 			mesh.Vao.DrawIndic()
 		}
