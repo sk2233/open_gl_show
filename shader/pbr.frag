@@ -1,16 +1,15 @@
 #version 330 core
 out vec4 FragColor;
 
-in mat3 TBN;  // 法线
+in vec3 Normal;  // 法线
 in vec3 FragPos;  // 世界空间坐标
 in vec2 TexCoord; // 纹理坐标
 
+uniform vec4 Color;
+uniform bool UseColor;
 uniform sampler2D BaseTex;
 uniform samplerCube DiffuseTex; // 预先生成的漫反射与高光 cube_map
 uniform samplerCube SpecularTex;
-uniform sampler2D MetallicRoughnessTex;
-uniform sampler2D OcclusionTex;
-uniform sampler2D NormalTex;
 uniform vec3 LightPos;
 uniform vec3 ViewPos;
 
@@ -37,10 +36,7 @@ float Geometry(float NDotV,float r){ // 计算物体对光的反射度 类似 OA
 
 void main() {
     // 提前预计算
-    vec4 normalTS=texture(NormalTex,TexCoord); // 获取的是切线空间下的法线需要使用 TBN 转换到世界坐标系
-    normalTS=normalize(normalTS*2.0-vec4(1.0));
-    vec3 normal =normalize(TBN*vec3(normalTS)); // 转换到正常空间下的法线
-    vec3 N = normalize(normal); // 法线
+    vec3 N = normalize(Normal); // 法线
     vec3 L = normalize(LightPos - FragPos); // 光照方向
     vec3 V = normalize(ViewPos - FragPos); // 视线方向
     vec3 H = normalize(L + V); // 光照+视线的半程向量
@@ -53,9 +49,11 @@ void main() {
     vec3 color = vec3(0.0);
     vec3 F = vec3(0.04); // 物质参数
     vec3 albedo = texture(BaseTex, TexCoord).rgb;
-    vec2 mr= texture(MetallicRoughnessTex,TexCoord).bg;
-    float metallic =mr.x;
-    float roughness =mr.y;
+    if(UseColor){
+        albedo=Color.rgb;
+    }
+    float metallic =0;
+    float roughness =1;
     F = mix(F, albedo, metallic); // 金属度越大原来的颜色占比越小
     // 直接光照
     vec3 Ks = Fresnel(F, HDotV);
@@ -67,14 +65,13 @@ void main() {
     vec3 specular = (D * Ks * G) / (4.0 * NDotV * NDotL + 0.0001); // 防止除0
     color += (diffuse + specular) * lightColor * lightIntensity * NDotL;
     // 间接光照  可以使用 AO 对间接光照进行加权
-    float ao=texture(OcclusionTex,TexCoord).r;
     Ks=FresnelRoughness(F, NDotV, roughness);  // 间接光照材质需要考虑粗糙度
     Kd=vec3(1.0)-Ks;
     Kd*=1.0- metallic;
     vec3 diffuseLight=texture(DiffuseTex, N).rgb;
-    color+=Kd*diffuseLight*albedo*ao; // 环境光漫反射
+    color+=Kd*diffuseLight*albedo; // 环境光漫反射
     vec3 specularLight =texture(SpecularTex, R).rgb;
-    color+= specularLight *F*ao;
+    color+= specularLight *F;
     // 输出最终结果
     FragColor = vec4(color, 1.0); // emissive 贴图直接叠加到最后即可无需额外计算
 }

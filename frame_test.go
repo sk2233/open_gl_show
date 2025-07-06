@@ -18,16 +18,12 @@ func TestFrame(t *testing.T) {
 	shader.SetI1("BaseTex", 0)
 	shader.SetI1("DiffuseTex", 1)
 	shader.SetI1("SpecularTex", 2)
-	shader.SetI1("MetallicRoughnessTex", 3)
-	shader.SetI1("EmissiveTex", 4)
-	shader.SetI1("OcclusionTex", 5)
-	shader.SetI1("NormalTex", 6)
 	skyShader := LoadShader("sky")
 	skyShader.Use()
 	skyShader.SetMat4("Projection", projection)
 	skyShader.SetMat4("Model", mgl32.Scale3D(50, 50, 50))
 
-	meshes := LoadMeshes("gun/scene.gltf")
+	meshes := LoadMeshes("nina/scene.gltf")
 	skyVao := NewVao(cubeV, gl.TRIANGLES, 3)
 
 	camera := NewCamera()
@@ -55,11 +51,17 @@ func TestFrame(t *testing.T) {
 		specularCube.Bind(gl.TEXTURE2)
 		for _, mesh := range meshes {
 			material := mesh.Material
-			shader.SetMat4("Model", mesh.Model.Mul4(mgl32.Scale3D(0.1, 0.1, 0.1)))
-			material.BaseTexture.Bind(gl.TEXTURE0)
-			material.MetallicRoughnessTexture.Bind(gl.TEXTURE3)
-			material.OcclusionTexture.Bind(gl.TEXTURE5)
-			material.NormalTexture.Bind(gl.TEXTURE6)
+			shader.SetMat4("Model", mesh.Model)
+			if material.BaseTexture == nil {
+				if mesh.Name != "Line_Line_0" {
+					continue
+				}
+				shader.SetF4("Color", *material.BaseColor)
+				shader.SetI1("UseColor", gl.TRUE)
+			} else {
+				material.BaseTexture.Bind(gl.TEXTURE0)
+				shader.SetI1("UseColor", gl.FALSE)
+			}
 			mesh.Vao.Bind()
 			mesh.Vao.DrawIndic()
 		}
