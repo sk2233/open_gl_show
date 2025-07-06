@@ -8,6 +8,9 @@
 ## 漫反射，高光分层，边缘光，角色描边
 ![img_7.png](img_7.png)
 > 分支：toon
+## AI 实现的卡通渲染
+![img_8.png](img_8.png)
+> 分支：toon_ai
 ## pbr 完全体水杯
 ![img_4.png](img_4.png)
 > 分支：bottle

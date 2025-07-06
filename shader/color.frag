@@ -10,32 +10,33 @@ uniform vec3 LightPos;
 uniform vec3 ViewPos;
 uniform vec4 Color;
 uniform bool UseColor;
+uniform vec3 LightColor;
+
+const int NumLevels = 2;
 
 void main() {
+    // 计算法线和光照方向与物体颜色
+    vec3 norm = normalize(Normal);
+    vec3 lightDir = normalize(LightPos - FragPos);
     vec3 color = texture(Texture, TexCoords).rgb;
     if(UseColor){
         color=Color.rgb;
     }
 
-    // ambient
-    vec3 ambient = 0.5 * color;
+    // 漫反射计算
+    float diff = max(dot(norm, lightDir), 0.0);
 
-    // diffuse
-    vec3 lightDir = normalize(LightPos - FragPos);
-    vec3 normal = normalize(Normal);
-    float diff = max(dot(lightDir, normal), 0.0);
-    vec3 diffuse = color*floor(diff*2)/2*0.5;
+    // 阶梯式漫反射（卡通效果核心）
+    float level = floor(diff * NumLevels) / NumLevels;
+    vec3 diffuse = level * LightColor;
 
-    // specular
+    // 边缘光效果
     vec3 viewDir = normalize(ViewPos - FragPos);
-    vec3 halfwayDir = normalize(lightDir + viewDir);
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
-    vec3 specular = vec3(0.2) * floor(spec*2)/2; // assuming bright white light color
+    float rim = 1.0 - max(dot(norm, viewDir), 0.0);
+    rim = smoothstep(0.6, 1.0, rim);
+    vec3 rimColor = vec3(1.0, 1.0, 1.0) * rim * 0.5;
 
-    // 边缘光
-    float rim = 1.0 - max(dot(normal, viewDir), 0.0);
-    rim = smoothstep(0.8, 1.0, rim); // 平滑边缘
-    vec3 rimColor=vec3(0.5)*rim;
-
-    FragColor = vec4(ambient + diffuse + specular+rimColor, 1.0);
+    // 最终颜色
+    vec3 result = (diffuse + rimColor) * color;
+    FragColor = vec4(result, 1.0);
 }
