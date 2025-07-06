@@ -6,7 +6,7 @@
 ![img_6.png](img_6.png)
 > 分支：light
 ## 漫反射，高光分层，边缘光，角色描边
-![img_2.png](img_2.png)
+![img_7.png](img_7.png)
 > 分支：toon
 ## pbr 完全体水杯
 ![img_4.png](img_4.png)
