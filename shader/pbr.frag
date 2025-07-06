@@ -9,7 +9,6 @@ uniform sampler2D BaseTex;
 uniform samplerCube DiffuseTex; // 预先生成的漫反射与高光 cube_map
 uniform samplerCube SpecularTex;
 uniform sampler2D MetallicRoughnessTex;
-uniform sampler2D EmissiveTex;
 uniform sampler2D OcclusionTex;
 uniform sampler2D NormalTex;
 uniform vec3 LightPos;
@@ -77,6 +76,5 @@ void main() {
     vec3 specularLight =texture(SpecularTex, R).rgb;
     color+= specularLight *F*ao;
     // 输出最终结果
-    vec3 emissive = texture(EmissiveTex,TexCoord).rgb;
-    FragColor = vec4(color+emissive, 1.0); // emissive 贴图直接叠加到最后即可无需额外计算
+    FragColor = vec4(color, 1.0); // emissive 贴图直接叠加到最后即可无需额外计算
 }
