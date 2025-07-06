@@ -1,5 +1,6 @@
 > 格式参考：https://blog.csdn.net/qq_22642239/article/details/129752911
 > 格式参考：https://blog.csdn.net/tianyapai/article/details/126524593
+> 格式参考：https://github.com/fangcun010/glTF-Tutorials/blob/master/gltfTutorial/README.md
 # Scene
 # Scenes
 Scenes[Scene].Nodes
@@ -41,3 +42,4 @@ xxx_MetallicRoughness 金属度(B)粗糙度(G)贴图<br>
 xxx_Normal 法线贴图<br>
 xxx_Emissive 自发光贴图<br>
 xxx_Occlusion OA环境遮罩贴图存储在 R 通道<br>
+![img_3.png](img_3.png)

@@ -58,6 +58,8 @@ func GetDataSize(dataType uint32) int {
 	switch dataType {
 	case gl.FLOAT, gl.UNSIGNED_INT:
 		return 4
+	case gl.UNSIGNED_SHORT:
+		return 2
 	default:
 		panic(fmt.Sprintf("unknown dataType %v", dataType))
 	}

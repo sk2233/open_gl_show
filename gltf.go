@@ -18,8 +18,8 @@ type GlTFData struct {
 }
 
 type TextureData struct {
-	Sampler int `json:"sampler"`
-	Source  int `json:"source"`
+	Sampler *int `json:"sampler"` // 可能使用默认采样器
+	Source  int  `json:"source"`
 }
 
 type SceneData struct {
@@ -43,7 +43,7 @@ type PrimitiveData struct {
 	Attributes map[string]int `json:"attributes"`
 	Indices    int            `json:"indices"`
 	Material   int            `json:"material"`
-	Mode       uint32         `json:"mode"`
+	Mode       *uint32        `json:"mode"`
 }
 
 type MeshData struct {

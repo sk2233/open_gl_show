@@ -23,7 +23,7 @@ func TestFrame(t *testing.T) {
 	skyShader.SetMat4("Projection", projection)
 	skyShader.SetMat4("Model", mgl32.Scale3D(50, 50, 50))
 
-	meshes := LoadMeshes("gun/scene.gltf")
+	meshes := LoadMeshes("bottle/WaterBottle.gltf")
 	skyVao := NewVao(cubeV, gl.TRIANGLES, 3)
 
 	camera := NewCamera()
@@ -51,7 +51,7 @@ func TestFrame(t *testing.T) {
 		specularCube.Bind(gl.TEXTURE2)
 		for _, mesh := range meshes {
 			material := mesh.Material
-			shader.SetMat4("Model", mesh.Model.Mul4(mgl32.Scale3D(0.1, 0.1, 0.1)))
+			shader.SetMat4("Model", mesh.Model.Mul4(mgl32.Scale3D(10, 10, 10)))
 			shader.SetF1("Metallic", Elem(material.Metallic, 0))
 			shader.SetF1("Roughness", Elem(material.Roughness, 1))
 			if material.BaseTexture == nil {

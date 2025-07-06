@@ -94,7 +94,7 @@ func loadMesh(mesh *PrimitiveData, name string, gltf *GlTFData, subPath string, 
 	temp = append(temp, load4FData(mesh.Attributes["POSITION"], gltf, subPath))
 	temp = append(temp, load4FData(mesh.Attributes["NORMAL"], gltf, subPath))
 	temp = append(temp, load4FData(mesh.Attributes["TEXCOORD_0"], gltf, subPath))
-	if _, ok := mesh.Attributes["TANGENT"]; ok { // TODO 切线数据大小
+	if _, ok := mesh.Attributes["TANGENT"]; ok {
 		temp = append(temp, load4FData(mesh.Attributes["TANGENT"], gltf, subPath))
 		sizes = append(sizes, 4)
 	}
@@ -103,7 +103,7 @@ func loadMesh(mesh *PrimitiveData, name string, gltf *GlTFData, subPath string, 
 	material := gltf.Materials[mesh.Material]
 	meshRes = append(meshRes, &Mesh{
 		Name:  name,
-		Vao:   NewVaoWithIndic(data, indData, mesh.Mode, sizes...),
+		Vao:   NewVaoWithIndic(data, indData, Elem(mesh.Mode, gl.TRIANGLES), sizes...),
 		Model: model,
 		Material: &Material{
 			EmissiveColor:            material.EmissiveFactor,
@@ -126,9 +126,13 @@ func loadTexture(data *textureData, gltf *GlTFData, subPath string) *Texture {
 		return nil
 	}
 	texture := gltf.Textures[data.Index]
-	sampler := gltf.Samplers[texture.Sampler]
 	path := subPath + gltf.Images[texture.Source].Uri
-	return LoadTextureWithSampler(path, sampler)
+	if texture.Sampler != nil {
+		sampler := gltf.Samplers[*texture.Sampler]
+		return LoadTextureWithSampler(path, sampler)
+	} else {
+		return LoadTexture(path)
+	}
 }
 
 var (
