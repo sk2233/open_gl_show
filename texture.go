@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/go-gl/gl/v4.1-core/gl"
+	_ "github.com/hotei/bmp"
 	"image"
 	"image/draw"
 	_ "image/jpeg"

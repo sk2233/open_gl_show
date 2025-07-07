@@ -18,3 +18,5 @@
 
 ![img_5.png](img_5.png)
 > 分支：gun
+## 通过渲染只背面描边
+![img_11.png](img_11.png)

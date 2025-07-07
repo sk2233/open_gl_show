@@ -40,6 +40,10 @@ func Elem[T any](ptr *T, def T) T {
 	}
 }
 
+func Ptr[T any](val T) *T {
+	return &val
+}
+
 func PressKey(window *glfw.Window, key glfw.Key) bool {
 	return window.GetKey(key) == glfw.Press
 }

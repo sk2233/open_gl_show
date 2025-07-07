@@ -23,6 +23,9 @@ type Material struct {
 	Roughness                *float32
 	AlphaMode                *string
 	AlphaCutoff              *float32
+	ToonTexture              *Texture
+	EdgeColor                *mgl32.Vec4
+	EdgeSize                 *float32
 }
 
 type Mesh struct {
