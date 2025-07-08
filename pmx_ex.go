@@ -486,7 +486,6 @@ func decodeString(r io.Reader, encoding uint8) (s string, err error) {
 		return
 	}
 
-	// TODO: utf8.Valid(buf)? 万一乱码会不会有隐患?
 	s = string(buf)
 	return
 }
@@ -729,7 +728,6 @@ func (pm *PMX) decodeFaces(r io.Reader) (err error) {
 		return
 	}
 	pm.Faces = make([]uint32, n) // n 是顶点数, 不是面数
-	// TODO: 一次全部读出来速度更快
 	for i := range pm.Faces {
 		if pm.Faces[i], err = decodeUint(r, pm.Header.SizeVertexIndex); err != nil {
 			return
@@ -1447,19 +1445,6 @@ func DecodePMX(r io.Reader) (p *PMX, err error) {
 			return
 		}
 	}
-	// 这段代码可以把骨骼和Morph名的日英对应表数出来, 对于不懂日语的人来说应该比较有用
-	// fmt.Println(`var BoneNamesTable = map[string]string{`)
-	// for _, p := range pm.Bones {
-	// 	fmt.Printf("  %q : %q,\n", p.Name, p.NameEN)
-	// }
-	// fmt.Println(`}`)
-
-	// fmt.Println(`var MorphNamesTable = map[string]string{`)
-	// for _, p := range pm.Morphs {
-	// 	fmt.Printf("  %q : %q,\n", p.Name, p.NameEN)
-	// }
-	// fmt.Println(`}`)
-
 	return
 }
 
@@ -1645,7 +1630,7 @@ func (pm *encPMX) encodeTextInfo(w io.Writer) (err error) {
 	if err = encodeString(w, pm.NameEN, pm.Header.TextEncoding); err != nil {
 		return
 	}
-	if autoDescriptionForEncode != "" && pm.Description == "" && pm.DescriptionEN == "" {
+	if pm.Description == "" && pm.DescriptionEN == "" {
 		if err = encodeString(w, autoDescriptionForEncode, pm.Header.TextEncoding); err != nil {
 			return
 		}
