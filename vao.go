@@ -10,6 +10,7 @@ import (
 
 type Vao struct {
 	Vao        uint32
+	Vbo        uint32
 	Mode       uint32
 	IndicSize  int32
 	PointCount int32
@@ -33,6 +34,11 @@ func (v *Vao) DrawIndic() {
 	gl.DrawElements(v.Mode, v.IndicSize, gl.UNSIGNED_INT, nil)
 }
 
+func (v *Vao) UpdateVbo(data []float32) {
+	gl.BindBuffer(gl.ARRAY_BUFFER, v.Vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(data)*4, gl.Ptr(data), gl.DYNAMIC_DRAW)
+}
+
 func NewVao(data []float32, mode uint32, sizes ...int32) *Vao {
 	// 创建对象&写入数据
 	var vao uint32
@@ -41,7 +47,7 @@ func NewVao(data []float32, mode uint32, sizes ...int32) *Vao {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(data)*4, gl.Ptr(data), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(data)*4, gl.Ptr(data), gl.DYNAMIC_DRAW)
 	// 设置数据
 	if len(sizes) == 0 {
 		panic("data format not set")
@@ -58,6 +64,7 @@ func NewVao(data []float32, mode uint32, sizes ...int32) *Vao {
 	}
 	return &Vao{
 		Vao:        vao,
+		Vbo:        vbo,
 		Mode:       mode,
 		IndicSize:  0,
 		PointCount: int32(len(data)) / sum,

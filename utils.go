@@ -68,3 +68,7 @@ func GetDataSize(dataType uint32) int {
 		panic(fmt.Sprintf("unknown dataType %v", dataType))
 	}
 }
+
+func Lerp(start, end, rate float32) float32 {
+	return start + (end-start)*rate
+}

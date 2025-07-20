@@ -24,8 +24,10 @@ type Material struct {
 	AlphaMode                *string
 	AlphaCutoff              *float32
 	ToonTexture              *Texture
+	SpeTexture               *Texture
 	EdgeColor                *mgl32.Vec4
 	EdgeSize                 *float32
+	Flags                    MaterialFlags
 }
 
 type Mesh struct {
@@ -33,6 +35,13 @@ type Mesh struct {
 	Model    mgl32.Mat4 // 位置
 	Vao      *Vao       // 模型
 	Material *Material  // 材质
+	Faces    []uint32   // 3点1面
+	Vertices []*Vertex  // 用于重复更新数据
+}
+
+func (m *Mesh) UpdateVertex() {
+	data := loadVec(m.Vertices, m.Faces)
+	m.Vao.UpdateVbo(data)
 }
 
 func getRootNode(gltf *GlTFData) *NodeData {

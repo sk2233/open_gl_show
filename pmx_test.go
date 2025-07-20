@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	"math"
 	"testing"
 )
 
@@ -15,26 +16,48 @@ func TestPmx(t *testing.T) {
 	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(16)/9, 0.1, 30.0)
 	shader.SetMat4("Projection", projection)
 	shader.SetMat4("Model", mgl32.Ident4())
-	shader.SetF3("LightPos", mgl32.Vec3{-30, 30, -30})
 	shader.SetI1("BaseTex", 0)
 	shader.SetI1("ToonTex", 1)
+	shader.SetI1("SpeTex", 2)
 	outlineShader := LoadShader("outline")
 	outlineShader.Use()
 	outlineShader.SetMat4("Projection", projection)
 	outlineShader.SetMat4("Model", mgl32.Ident4())
 
-	meshes := LoadPMX("坎特蕾拉_鸣潮/坎特蕾拉.pmx")
+	meshes, pmx := LoadPMX("星穹铁道—流萤·春日手信/星穹铁道—流萤·春日手信.pmx")
+	vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画与表情动画
+	//morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
+	boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
 	camera := NewCamera()
 
+	time := uint32(0)
+	lastTime := glfw.GetTime()
 	for !window.ShouldClose() {
 		gl.ClearColor(0.3, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		camera.Update(window)
 
+		nowTime := glfw.GetTime()
+		if nowTime-lastTime > 1.0/30 {
+			time++
+			lastTime += 1.0 / 30
+		}
+		// 更新节点
+		pmx.ResetVertex()
+		//morphWeights := morphCalculator.Calculate(time)
+		//for idx, weight := range morphWeights {
+		//	pmx.ApplyMorph(idx, weight)
+		//}
+		bonePosAndRotates := boneCalculator.Calculate(time)
+		pmx.ApplyBone(bonePosAndRotates)
+		shader.Use()
+
+		shader.SetF3("LightPos", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
 		// 正常绘制对象
 		gl.Enable(gl.DEPTH_TEST)
 		gl.Enable(gl.CULL_FACE)
-		for i, mesh := range meshes {
+		for _, mesh := range meshes {
+			mesh.UpdateVertex() // 更新节点
 			material := mesh.Material
 			// 先绘制对象
 			gl.CullFace(gl.BACK) // 只绘制正面
@@ -48,11 +71,17 @@ func TestPmx(t *testing.T) {
 			} else {
 				shader.SetI1("UseToon", gl.FALSE)
 			}
+			if material.SpeTexture != nil {
+				material.SpeTexture.Bind(gl.TEXTURE2)
+				shader.SetI1("UseSpe", gl.TRUE)
+			} else {
+				shader.SetI1("UseSpe", gl.FALSE)
+			}
 			mesh.Vao.Bind()
 			mesh.Vao.Draw()
 			// 再绘制描边
-			if i == 10 || i == 5 { // 嘴就不要描边了，不好看
-				continue
+			if material.Flags&MATERIAL_FLAG_DRAWEDGE == 0 {
+				continue // 没有描边
 			}
 			gl.CullFace(gl.FRONT) // 放大一点且只绘制反面
 			outlineShader.Use()

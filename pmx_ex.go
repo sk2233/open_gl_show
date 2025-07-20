@@ -39,13 +39,15 @@ const (
 
 // 顶点
 type Vertex struct {
-	Position [3]float32
-	Normal   [3]float32
-	UV       [2]float32
-	UV1      [4]float32
-	UV2      [4]float32
-	UV3      [4]float32
-	UV4      [4]float32
+	OldPos    mgl32.Vec3
+	CurrPos   mgl32.Vec3
+	PosOffset mgl32.Vec3
+	Normal    [3]float32
+	UV        [2]float32
+	UV1       [4]float32
+	UV2       [4]float32
+	UV3       [4]float32
+	UV4       [4]float32
 
 	BoneMethod BoneMethod // BDEF1, BDEF2, BDEF4, SDEF
 	Bones      [4]int32
@@ -135,7 +137,9 @@ type Bone struct {
 	Name   string
 	NameEN string
 
-	Position   [3]float32
+	Position   mgl32.Vec3
+	WorldMat   mgl32.Mat4
+	LocalMat   mgl32.Mat4
 	Parent     int32
 	MorphLevel int32 // 应该是用来控制变形的顺序
 
@@ -155,8 +159,8 @@ type Bone struct {
 
 	TwistAxis [3]float32 // 轴向旋转坐标轴
 
-	LocalXAxis [3]float32 // 适用于 BONE_FLAG_LOCAL_AXIS==1
-	LocalZAxis [3]float32 // 适用于 BONE_FLAG_LOCAL_AXIS==1
+	LocalXAxis mgl32.Vec3 // 适用于 BONE_FLAG_LOCAL_AXIS==1
+	LocalZAxis mgl32.Vec3 // 适用于 BONE_FLAG_LOCAL_AXIS==1
 
 	ExternalParent int32 // 适用于 BONE_FLAG_EXTERNAL_PARENT=1
 
@@ -440,12 +444,12 @@ type PMX struct {
 	Description   string
 	DescriptionEN string
 
-	Vertices      []Vertex
+	Vertices      []*Vertex
 	Faces         []uint32 // 3点1面
 	Textures      []string
 	Materials     []PmxMaterial
-	Bones         []Bone // 骨骼
-	Morphs        []Morph
+	Bones         []*Bone // 骨骼
+	Morphs        []*Morph
 	DisplayFrames []DisplayFrame
 	RigidBodies   []RigidBody
 	Joints        []Joint // 连接两个刚体的关节 (注意Joint不是骨骼的关节)
@@ -615,10 +619,11 @@ func (pm *PMX) decodeVertices(r io.Reader) (err error) {
 	if n == 0 {
 		return
 	}
-	pm.Vertices = make([]Vertex, n)
+	pm.Vertices = make([]*Vertex, n)
 	for i := range pm.Vertices {
+		pm.Vertices[i] = &Vertex{}
 		pm.Vertices[i].Bones = [4]int32{-1, -1, -1, -1}
-		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].Position); err != nil {
+		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].OldPos); err != nil {
 			return
 		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].Normal); err != nil {
@@ -826,9 +831,9 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 	if n == 0 {
 		return
 	}
-	pm.Bones = make([]Bone, n)
+	pm.Bones = make([]*Bone, n)
 	for i := range pm.Bones {
-
+		pm.Bones[i] = &Bone{}
 		pm.Bones[i].TailBone = -1
 		pm.Bones[i].BlendTransformSourceBone = -1
 		pm.Bones[i].IKLink.EndBone = -1
@@ -921,6 +926,22 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 				}
 			}
 		}
+		pos := pm.Bones[i].Position
+		rota := mgl32.Ident4()
+		if pm.Bones[i].Flags&BONE_FLAG_LOCAL_AXIS != 0 {
+			xAxis := pm.Bones[i].LocalXAxis.Normalize()
+			zAxis := pm.Bones[i].LocalZAxis.Normalize()
+			// 计算局部Y轴（Z × X）
+			yAxis := zAxis.Cross(xAxis).Normalize()
+			// 重新计算Z轴确保正交性（X × Y）
+			zAxis = xAxis.Cross(yAxis)
+			rota = mgl32.Mat3{
+				xAxis.X(), yAxis.X(), zAxis.X(),
+				xAxis.Y(), yAxis.Y(), zAxis.Y(),
+				xAxis.Z(), yAxis.Z(), zAxis.Z(),
+			}.Mat4()
+		}
+		pm.Bones[i].LocalMat = mgl32.Translate3D(pos[0], pos[1], pos[2]).Mul4(rota).Inv()
 	}
 	return
 }
@@ -933,8 +954,9 @@ func (pm *PMX) decodeMorphs(r io.Reader) (err error) {
 	if n == 0 {
 		return
 	}
-	pm.Morphs = make([]Morph, n)
+	pm.Morphs = make([]*Morph, n)
 	for i := range pm.Morphs {
+		pm.Morphs[i] = &Morph{}
 		if pm.Morphs[i].Name, err = decodeString(r, pm.Header.TextEncoding); err != nil {
 			return
 		}
@@ -1385,6 +1407,89 @@ func (pm *PMX) decodeSoftBodies(r io.Reader) (err error) {
 	return
 }
 
+func (pm *PMX) ResetVertex() {
+	for _, vertex := range pm.Vertices {
+		vertex.PosOffset = VecZero
+		vertex.CurrPos = vertex.OldPos
+	}
+}
+
+func (pm *PMX) getMorph(name string) *Morph {
+	for _, morph := range pm.Morphs {
+		if morph.Name == name {
+			return morph
+		}
+	}
+	return nil
+}
+
+func (pm *PMX) ApplyMorph(idx int, weight float32) {
+	morph := pm.Morphs[idx]
+	// 先只考虑位移 这里是累加的注意 Reset 恢复
+	for _, offset := range morph.PositionMorphOffsets {
+		temp := pm.Vertices[offset.Vertex]
+		temp.PosOffset[0] += offset.Offset[0] * weight
+		temp.PosOffset[1] += offset.Offset[1] * weight
+		temp.PosOffset[2] += offset.Offset[2] * weight
+	}
+}
+
+func (pm *PMX) ApplyBone(posAndRotates map[int]*BonePosAndRotate) {
+	childMap := make(map[int][]int)
+	roots := make([]int, 0)
+	for i, bone := range pm.Bones {
+		if bone.Parent >= 0 {
+			parent := int(bone.Parent)
+			childMap[parent] = append(childMap[parent], i)
+		} else {
+			roots = append(roots, i) // 根节点
+		}
+	}
+	for _, root := range roots {
+		pm.dfs(root, mgl32.Ident4(), childMap, posAndRotates)
+	}
+	for _, vertex := range pm.Vertices {
+		bones := vertex.Bones
+		weights := vertex.Weights
+		pos := vertex.OldPos.Vec4(1)
+		switch vertex.BoneMethod {
+		case BDEF1: // 只有一个 bone 100% 权重
+			bone := pm.Bones[bones[0]]
+			vertex.CurrPos = bone.WorldMat.Mul4(bone.LocalMat).Mul4x1(pos).Vec3()
+		case BDEF2:
+			weight := weights[0]
+			bone1 := pm.Bones[bones[0]]
+			bone2 := pm.Bones[bones[1]]
+			vertex.CurrPos = bone1.WorldMat.Mul4(bone1.LocalMat).Mul4x1(pos).Mul(weight).
+				Add(bone2.WorldMat.Mul4(bone2.LocalMat).Mul4x1(pos).Mul(1 - weight)).Vec3()
+		case BDEF4:
+			temp := mgl32.Vec4{}
+			for i := 0; i < 4; i++ {
+				bone := pm.Bones[bones[i]]
+				temp = temp.Add(bone.WorldMat.Mul4(bone.LocalMat).Mul4x1(pos).Mul(weights[i]))
+			}
+			//for i := 0; i < 4; i++ { // 部分为 0 就为 0 了
+			//	res = res.Add(pm.Bones[bones[i]].WorldMat.Mul4x1(pos).Mul(weights[i]))
+			//}
+			vertex.CurrPos = temp.Vec3()
+		default:
+			panic(fmt.Sprintf("unknown boneMethod %v", vertex.BoneMethod))
+		}
+	}
+}
+
+func (pm *PMX) dfs(curr int, mat mgl32.Mat4, childMap map[int][]int, posAndRotates map[int]*BonePosAndRotate) {
+	bone := pm.Bones[curr]
+	if val, ok := posAndRotates[curr]; ok { // 先旋转，再平移
+		mat = mat.Mul4(mgl32.Translate3D(val.Translate[0], val.Translate[1], val.Translate[2]))
+		mat = mat.Mul4(val.Rotate.Mat4())
+	}
+	bone.WorldMat = mat
+	for _, next := range childMap[curr] {
+		pm.dfs(next, mat, childMap, posAndRotates)
+	}
+}
+
 // DecodePMX PMX 2.0/2.1 format from reader r
 func DecodePMX(r io.Reader) (p *PMX, err error) {
 	p = new(PMX)
@@ -1654,7 +1759,7 @@ func (pm *encPMX) encodeVertices(w io.Writer) (err error) {
 		return
 	}
 	for i := range pm.Vertices {
-		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].Position); err != nil {
+		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].OldPos); err != nil {
 			return
 		}
 		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].Normal); err != nil {
