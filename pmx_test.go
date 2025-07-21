@@ -27,9 +27,9 @@ func TestPmx(t *testing.T) {
 	outlineShader.SetMat4("Model", mgl32.Ident4())
 
 	meshes, pmx := LoadPMX("星穹铁道—流萤/星穹铁道—流萤.pmx")
-	vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画与表情动画
+	//vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画与表情动画
 	//morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
-	boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
+	//boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
 	camera := NewCamera()
 
 	time := uint32(0)
@@ -51,8 +51,8 @@ func TestPmx(t *testing.T) {
 		//for idx, weight := range morphWeights {
 		//	pmx.ApplyMorph(idx, weight)
 		//}
-		bonePosAndRotates := boneCalculator.Calculate(time)
-		pmx.ApplyBone(bonePosAndRotates)
+		//bonePosAndRotates := boneCalculator.Calculate(time)
+		//pmx.ApplyBone(bonePosAndRotates)
 		shader.Use()
 
 		shader.SetF3("LightPos", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
