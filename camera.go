@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 )
@@ -11,7 +12,7 @@ type Camera struct {
 }
 
 func NewCamera() *Camera {
-	return &Camera{Pos: mgl32.Vec3{5, 5, 5}, Dir: mgl32.Vec3{-1, -1, -1}}
+	return &Camera{Pos: mgl32.Vec3{1.4515511, 19.742188, -14.045877}, Dir: mgl32.Vec3{-0.19201341, -0.52491015, 1.6393855}}
 }
 
 func (c *Camera) GetView() mgl32.Mat4 {
@@ -58,5 +59,8 @@ func (c *Camera) Update(window *glfw.Window) {
 	rotateY := GetAxis(window, glfw.KeyDown, glfw.KeyUp)
 	if rotateY != 0 {
 		c.RotateY(rotateY * 0.01)
+	}
+	if PressKey(window, glfw.KeyEnter) {
+		fmt.Println(c.Pos, c.Dir)
 	}
 }

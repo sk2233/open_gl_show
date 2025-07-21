@@ -34,6 +34,11 @@ func LoadPMX(name string) ([]*Mesh, *PMX) {
 			Vertices: pmx.Vertices,
 		})
 	}
+	// 计算初始化逆矩阵
+	pmx.ApplyBone(make(map[int]*BonePosAndRotate))
+	for _, bone := range pmx.Bones {
+		bone.LocalMat = bone.WorldMat.Inv()
+	}
 	return meshes, pmx
 }
 

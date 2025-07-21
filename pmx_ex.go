@@ -138,6 +138,7 @@ type Bone struct {
 	NameEN string
 
 	Position   mgl32.Vec3
+	Rotate     mgl32.Quat
 	WorldMat   mgl32.Mat4
 	LocalMat   mgl32.Mat4
 	Parent     int32
@@ -926,22 +927,21 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 				}
 			}
 		}
-		pos := pm.Bones[i].Position
-		rota := mgl32.Ident4()
-		if pm.Bones[i].Flags&BONE_FLAG_LOCAL_AXIS != 0 {
-			xAxis := pm.Bones[i].LocalXAxis.Normalize()
-			zAxis := pm.Bones[i].LocalZAxis.Normalize()
+		bone := pm.Bones[i]
+		bone.Rotate = mgl32.QuatIdent()
+		if bone.Flags&BONE_FLAG_LOCAL_AXIS > 0 {
+			xAxis := bone.LocalXAxis.Normalize()
+			zAxis := bone.LocalZAxis.Normalize()
 			// 计算局部Y轴（Z × X）
 			yAxis := zAxis.Cross(xAxis).Normalize()
 			// 重新计算Z轴确保正交性（X × Y）
 			zAxis = xAxis.Cross(yAxis)
-			rota = mgl32.Mat3{
+			bone.Rotate = mgl32.Mat4ToQuat(mgl32.Mat3{
 				xAxis.X(), yAxis.X(), zAxis.X(),
 				xAxis.Y(), yAxis.Y(), zAxis.Y(),
 				xAxis.Z(), yAxis.Z(), zAxis.Z(),
-			}.Mat4()
+			}.Mat4())
 		}
-		pm.Bones[i].LocalMat = mgl32.Translate3D(pos[0], pos[1], pos[2]).Mul4(rota).Inv()
 	}
 	return
 }
@@ -1451,39 +1451,54 @@ func (pm *PMX) ApplyBone(posAndRotates map[int]*BonePosAndRotate) {
 	for _, vertex := range pm.Vertices {
 		bones := vertex.Bones
 		weights := vertex.Weights
-		pos := vertex.OldPos.Vec4(1)
+		pos := vertex.OldPos.Add(vertex.PosOffset).Vec4(1)
 		switch vertex.BoneMethod {
 		case BDEF1: // 只有一个 bone 100% 权重
 			bone := pm.Bones[bones[0]]
-			vertex.CurrPos = bone.WorldMat.Mul4(bone.LocalMat).Mul4x1(pos).Vec3()
+			vertex.CurrPos = bone.WorldMat.Mul4x1(bone.LocalMat.Mul4x1(pos)).Vec3()
 		case BDEF2:
 			weight := weights[0]
 			bone1 := pm.Bones[bones[0]]
 			bone2 := pm.Bones[bones[1]]
-			vertex.CurrPos = bone1.WorldMat.Mul4(bone1.LocalMat).Mul4x1(pos).Mul(weight).
-				Add(bone2.WorldMat.Mul4(bone2.LocalMat).Mul4x1(pos).Mul(1 - weight)).Vec3()
+			vertex.CurrPos = bone1.WorldMat.Mul4x1(bone1.LocalMat.Mul4x1(pos)).Mul(weight).
+				Add(bone2.WorldMat.Mul4x1(bone2.LocalMat.Mul4x1(pos)).Mul(1 - weight)).
+				Vec3()
 		case BDEF4:
 			temp := mgl32.Vec4{}
 			for i := 0; i < 4; i++ {
+				if weights[i] == 0 {
+					continue
+				}
 				bone := pm.Bones[bones[i]]
-				temp = temp.Add(bone.WorldMat.Mul4(bone.LocalMat).Mul4x1(pos).Mul(weights[i]))
+				temp = temp.Add(bone.WorldMat.Mul4x1(bone.LocalMat.Mul4x1(pos)).Mul(weights[i]))
 			}
-			//for i := 0; i < 4; i++ { // 部分为 0 就为 0 了
-			//	res = res.Add(pm.Bones[bones[i]].WorldMat.Mul4x1(pos).Mul(weights[i]))
-			//}
 			vertex.CurrPos = temp.Vec3()
 		default:
 			panic(fmt.Sprintf("unknown boneMethod %v", vertex.BoneMethod))
 		}
+		//if vertex.CurrPos[0] > 100 || vertex.CurrPos[1] > 100 || vertex.CurrPos[2] > 100 {
+		//	fmt.Println(vertex.CurrPos)
+		//}
 	}
 }
 
 func (pm *PMX) dfs(curr int, mat mgl32.Mat4, childMap map[int][]int, posAndRotates map[int]*BonePosAndRotate) {
 	bone := pm.Bones[curr]
+	pos := bone.Position // 初始位置
+	rota := bone.Rotate
 	if val, ok := posAndRotates[curr]; ok { // 先旋转，再平移
-		mat = mat.Mul4(mgl32.Translate3D(val.Translate[0], val.Translate[1], val.Translate[2]))
-		mat = mat.Mul4(val.Rotate.Mat4())
+		if bone.Flags&BONE_FLAG_ROTATION_ENABLED > 0 {
+			rota = rota.Mul(val.Rotate)
+			//mat = val.Rotate.Mat4().Mul4(mat)
+		}
+		if bone.Flags&BONE_FLAG_TRANSLATION_ENABLED > 0 {
+			pos = pos.Add(val.Translate) // 附加位置
+			//mat = mgl32.Translate3D(val.Translate[0], val.Translate[1], val.Translate[2]).Mul4(mat)
+		}
 	}
+	mat = mat.Mul4(mgl32.Translate3D(pos[0], pos[1], pos[2]))
+	mat = mat.Mul4(rota.Mat4())
+
 	bone.WorldMat = mat
 	for _, next := range childMap[curr] {
 		pm.dfs(next, mat, childMap, posAndRotates)

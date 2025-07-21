@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// TODO 学习项目 加载大喜模型  与  骨骼，物理动画
+
 func TestPmx(t *testing.T) {
 	window := NewWindow(1280, 720, "Test")
 
@@ -24,7 +26,7 @@ func TestPmx(t *testing.T) {
 	outlineShader.SetMat4("Projection", projection)
 	outlineShader.SetMat4("Model", mgl32.Ident4())
 
-	meshes, pmx := LoadPMX("星穹铁道—流萤·春日手信/星穹铁道—流萤·春日手信.pmx")
+	meshes, pmx := LoadPMX("星穹铁道—流萤/星穹铁道—流萤.pmx")
 	vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画与表情动画
 	//morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
 	boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
@@ -32,6 +34,7 @@ func TestPmx(t *testing.T) {
 
 	time := uint32(0)
 	lastTime := glfw.GetTime()
+	gl.Enable(gl.DEPTH_TEST)
 	for !window.ShouldClose() {
 		gl.ClearColor(0.3, 0.3, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -53,14 +56,14 @@ func TestPmx(t *testing.T) {
 		shader.Use()
 
 		shader.SetF3("LightPos", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
-		// 正常绘制对象
-		gl.Enable(gl.DEPTH_TEST)
-		gl.Enable(gl.CULL_FACE)
 		for _, mesh := range meshes {
 			mesh.UpdateVertex() // 更新节点
 			material := mesh.Material
+			if material.BaseTexture == nil {
+				continue
+			}
 			// 先绘制对象
-			gl.CullFace(gl.BACK) // 只绘制正面
+			gl.Disable(gl.CULL_FACE)
 			shader.Use()
 			shader.SetMat4("View", camera.GetView())
 			shader.SetF3("ViewPos", camera.Pos)
@@ -83,6 +86,7 @@ func TestPmx(t *testing.T) {
 			if material.Flags&MATERIAL_FLAG_DRAWEDGE == 0 {
 				continue // 没有描边
 			}
+			gl.Enable(gl.CULL_FACE)
 			gl.CullFace(gl.FRONT) // 放大一点且只绘制反面
 			outlineShader.Use()
 			outlineShader.SetMat4("View", camera.GetView())
