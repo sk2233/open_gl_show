@@ -39,15 +39,19 @@ const (
 
 // 顶点
 type Vertex struct {
-	OldPos    mgl32.Vec3
-	CurrPos   mgl32.Vec3
-	PosOffset mgl32.Vec3
-	Normal    [3]float32
-	UV        [2]float32
-	UV1       [4]float32
-	UV2       [4]float32
-	UV3       [4]float32
-	UV4       [4]float32
+	// 原始数据
+	Position mgl32.Vec3
+	Normal   mgl32.Vec3
+	// Morph 位置偏移
+	MorphOffset mgl32.Vec3
+	// 更新后的数据 暂时只修改 Pos 与 Nor
+	UpdatePosition mgl32.Vec3
+	UpdateNormal   mgl32.Vec3
+	UV             [2]float32
+	UV1            [4]float32
+	UV2            [4]float32
+	UV3            [4]float32
+	UV4            [4]float32
 
 	BoneMethod BoneMethod // BDEF1, BDEF2, BDEF4, SDEF
 	Bones      [4]int32
@@ -77,11 +81,12 @@ const (
 
 // 材质
 type PmxMaterial struct {
-	Name     string
-	NameEN   string
-	Diffuse  mgl32.Vec4 // RGBA
-	Specular [4]float32 // RGB + 系数
-	Ambient  [3]float32 // RGB
+	Name          string
+	NameEN        string
+	Diffuse       mgl32.Vec4 // RGBA
+	Specular      mgl32.Vec3 // RGB
+	SpecularPower float32    // Power
+	Ambient       mgl32.Vec3 // RGB
 
 	Flags MaterialFlags
 
@@ -123,7 +128,7 @@ const (
 	BONE_FLAG_ENABLED                                     // 允许操作
 	BONE_FLAG_INVERSE_KINEMATICS                          // 反向动力学
 	BONE_FLAG_0X0040                                      //
-	BONE_FLAG_0X0080                                      // 本地付与. 0=用户变形/IK/多重付与, 1=父骨骼的本地变形 ???
+	BONE_FLAG_BLEND_LOCAL                                 // 本地付与. 0=用户变形/IK/多重付与, 1=父骨骼的本地变形 ???
 	BONE_FLAG_BLEND_ROTATION                              // 旋转付与. 随着付与骨旋转.
 	BONE_FLAG_BLEND_TRANSLATION                           // 移动付与. 随着付与骨移动.
 	BONE_FLAG_TWIST_AXIS                                  // 固定轴. 限制只能绕着特定轴旋转.
@@ -137,12 +142,33 @@ type Bone struct {
 	Name   string
 	NameEN string
 
-	Position   mgl32.Vec3
-	Rotate     mgl32.Quat
-	WorldMat   mgl32.Mat4
-	LocalMat   mgl32.Mat4
-	Parent     int32
-	MorphLevel int32 // 应该是用来控制变形的顺序
+	Position       mgl32.Vec3
+	ParentIndex    int32
+	TransformOrder int32 // 用来控制变形的顺序
+
+	// 新增
+	Parent   *Bone
+	Children []*Bone
+	// 自身的变换
+	Translate     mgl32.Vec3
+	Rotate        mgl32.Quat
+	GlobalInverse mgl32.Mat4
+	// 跟随父节点的变化   好像也没有用
+	IsAppendRotate    bool
+	IsAppendTranslate bool
+	AppendRotate      mgl32.Quat
+	AppendTranslate   mgl32.Vec3
+	IsAppendLocal     bool
+	// 动画产生的变化
+	AnimRotate    mgl32.Quat
+	AnimTranslate mgl32.Vec3
+	Local         mgl32.Mat4
+	Global        mgl32.Mat4
+
+	// 骨间数值调制的数值来源骨骼序号
+	AppendBondIndex int32
+	// 骨间数值调制的比例 DST' = SRC * frac + DST * (1 - frac) ???
+	AppendBoneWeight float32
 
 	Flags BoneFlags
 
@@ -152,12 +178,6 @@ type Bone struct {
 	// 骨骼尖端显示为指向相对于骨骼的自身的偏移量. BONE_FLAG_TAIL_BONE==0
 	TailOffset [3]float32
 
-	// 骨间数值调制的数值来源骨骼序号
-	BlendTransformSourceBone int32
-
-	// 骨间数值调制的比例 DST' = SRC * frac + DST * (1 - frac) ???
-	BlendTransformFrac float32
-
 	TwistAxis [3]float32 // 轴向旋转坐标轴
 
 	LocalXAxis mgl32.Vec3 // 适用于 BONE_FLAG_LOCAL_AXIS==1
@@ -166,6 +186,31 @@ type Bone struct {
 	ExternalParent int32 // 适用于 BONE_FLAG_EXTERNAL_PARENT=1
 
 	IKLink IKLink // IK链 适用于 BONE_FLAG_IK=1
+}
+
+func (b *Bone) UpdateLocalTransform() {
+	temp1 := b.AnimRotate.Mul(b.Rotate)
+	if b.IsAppendRotate {
+		temp1 = temp1.Mul(b.AppendRotate)
+	}
+	rotate := temp1.Mat4()
+	temp2 := b.AnimTranslate.Add(b.Translate)
+	if b.IsAppendTranslate {
+		temp2 = temp2.Add(b.AppendTranslate)
+	}
+	translate := mgl32.Translate3D(temp2[0], temp2[1], temp2[2])
+	b.Local = translate.Mul4(rotate)
+}
+
+func (b *Bone) UpdateGlobalTransform() {
+	if b.Parent != nil { // 其父节点一定更新完了
+		b.Global = b.Parent.Global.Mul4(b.Local)
+	} else {
+		b.Global = b.Local
+	} // 递归
+	for _, child := range b.Children {
+		child.UpdateGlobalTransform()
+	}
 }
 
 // Morph在mmd软件中的分组. 主要是便于界面操作, 对模型本身意义不大.
@@ -197,7 +242,7 @@ const (
 
 type PositionMorphOffset struct {
 	Vertex int32
-	Offset [3]float32
+	Offset mgl32.Vec3
 }
 
 type UVMorphOffset struct {
@@ -247,7 +292,7 @@ type Morph struct {
 	Type  MorphType  // MORPH_TYPE_*
 
 	// 为了便于使用, 我们为每种类型单独定义其中一个数组. 实际只有其中一个有数据, 不能混用.
-	PositionMorphOffsets []PositionMorphOffset
+	PositionMorphOffsets []*PositionMorphOffset
 	UVMorphOffsets       []UVMorphOffset
 	BoneMorphOffsets     []BoneMorphOffset
 	MaterialMorphOffsets []MaterialMorphOffset
@@ -450,6 +495,7 @@ type PMX struct {
 	Textures      []string
 	Materials     []PmxMaterial
 	Bones         []*Bone // 骨骼
+	SortBones     []*Bone // 排序后的骨骼
 	Morphs        []*Morph
 	DisplayFrames []DisplayFrame
 	RigidBodies   []RigidBody
@@ -624,7 +670,7 @@ func (pm *PMX) decodeVertices(r io.Reader) (err error) {
 	for i := range pm.Vertices {
 		pm.Vertices[i] = &Vertex{}
 		pm.Vertices[i].Bones = [4]int32{-1, -1, -1, -1}
-		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].OldPos); err != nil {
+		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].Position); err != nil {
 			return
 		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Vertices[i].Normal); err != nil {
@@ -781,6 +827,9 @@ func (pm *PMX) decodeMaterials(r io.Reader) (err error) {
 		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].Specular); err != nil {
 			return
 		}
+		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].SpecularPower); err != nil {
+			return
+		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].Ambient); err != nil {
 			return
 		}
@@ -836,7 +885,7 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 	for i := range pm.Bones {
 		pm.Bones[i] = &Bone{}
 		pm.Bones[i].TailBone = -1
-		pm.Bones[i].BlendTransformSourceBone = -1
+		pm.Bones[i].AppendBondIndex = -1
 		pm.Bones[i].IKLink.EndBone = -1
 		pm.Bones[i].ExternalParent = -1
 
@@ -849,10 +898,10 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 		if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].Position); err != nil {
 			return
 		}
-		if pm.Bones[i].Parent, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
+		if pm.Bones[i].ParentIndex, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
 			return
 		}
-		if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].MorphLevel); err != nil {
+		if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].TransformOrder); err != nil {
 			return
 		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].Flags); err != nil {
@@ -868,10 +917,10 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 			}
 		}
 		if pm.Bones[i].Flags&BONE_FLAG_BLEND_ROTATION != 0 || pm.Bones[i].Flags&BONE_FLAG_BLEND_TRANSLATION != 0 {
-			if pm.Bones[i].BlendTransformSourceBone, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
+			if pm.Bones[i].AppendBondIndex, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
 				return
 			}
-			if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].BlendTransformFrac); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].AppendBoneWeight); err != nil {
 				return
 			}
 		}
@@ -986,8 +1035,9 @@ func (pm *PMX) decodeMorphs(r io.Reader) (err error) {
 					}
 				}
 			case MORPH_TYPE_POSITION:
-				pm.Morphs[i].PositionMorphOffsets = make([]PositionMorphOffset, numOffsets)
+				pm.Morphs[i].PositionMorphOffsets = make([]*PositionMorphOffset, numOffsets)
 				for j := range pm.Morphs[i].PositionMorphOffsets {
+					pm.Morphs[i].PositionMorphOffsets[j] = &PositionMorphOffset{}
 					if pm.Morphs[i].PositionMorphOffsets[j].Vertex, err = decodeInt(r, pm.Header.SizeVertexIndex); err != nil {
 						return
 					}
@@ -1407,10 +1457,15 @@ func (pm *PMX) decodeSoftBodies(r io.Reader) (err error) {
 	return
 }
 
-func (pm *PMX) ResetVertex() {
+func (pm *PMX) ResetBoneAndVertex() {
+	for _, bone := range pm.Bones {
+		bone.AppendTranslate = mgl32.Vec3{}
+		bone.AppendRotate = mgl32.QuatIdent()
+		bone.AnimTranslate = mgl32.Vec3{}
+		bone.AnimRotate = mgl32.QuatIdent()
+	}
 	for _, vertex := range pm.Vertices {
-		vertex.PosOffset = VecZero
-		vertex.CurrPos = vertex.OldPos
+		vertex.MorphOffset = VecZero
 	}
 }
 
@@ -1428,80 +1483,57 @@ func (pm *PMX) ApplyMorph(idx int, weight float32) {
 	// 先只考虑位移 这里是累加的注意 Reset 恢复
 	for _, offset := range morph.PositionMorphOffsets {
 		temp := pm.Vertices[offset.Vertex]
-		temp.PosOffset[0] += offset.Offset[0] * weight
-		temp.PosOffset[1] += offset.Offset[1] * weight
-		temp.PosOffset[2] += offset.Offset[2] * weight
+		temp.MorphOffset = temp.MorphOffset.Add(offset.Offset.Mul(weight))
 	}
 }
 
-func (pm *PMX) ApplyBone(posAndRotates map[int]*BonePosAndRotate) {
-	childMap := make(map[int][]int)
-	roots := make([]int, 0)
-	for i, bone := range pm.Bones {
-		if bone.Parent >= 0 {
-			parent := int(bone.Parent)
-			childMap[parent] = append(childMap[parent], i)
-		} else {
-			roots = append(roots, i) // 根节点
+func (pm *PMX) ApplyBones(posAndRotates map[int]*BonePosAndRotate) {
+	for idx, item := range posAndRotates {
+		bond := pm.Bones[idx]
+		bond.AnimTranslate = item.Translate
+		bond.AnimRotate = item.Rotate
+	}
+	// 先更新本地位移
+	for _, bone := range pm.SortBones {
+		bone.UpdateLocalTransform()
+	}
+	// 本地准备完毕，再处理全局的
+	for _, bone := range pm.SortBones {
+		if bone.Parent == nil { // 从顶部开始进行递归
+			bone.UpdateGlobalTransform()
 		}
 	}
-	for _, root := range roots {
-		pm.dfs(root, mgl32.Ident4(), childMap, posAndRotates)
+	// 计算对应矩阵
+	ms := make([]mgl32.Mat4, 0)
+	for _, bone := range pm.Bones {
+		ms = append(ms, bone.Global.Mul4(bone.GlobalInverse))
 	}
-	for _, vertex := range pm.Vertices {
-		bones := vertex.Bones
-		weights := vertex.Weights
-		pos := vertex.OldPos.Add(vertex.PosOffset).Vec4(1)
-		switch vertex.BoneMethod {
-		case BDEF1: // 只有一个 bone 100% 权重
-			bone := pm.Bones[bones[0]]
-			vertex.CurrPos = bone.WorldMat.Mul4x1(bone.LocalMat.Mul4x1(pos)).Vec3()
-		case BDEF2:
-			weight := weights[0]
-			bone1 := pm.Bones[bones[0]]
-			bone2 := pm.Bones[bones[1]]
-			vertex.CurrPos = bone1.WorldMat.Mul4x1(bone1.LocalMat.Mul4x1(pos)).Mul(weight).
-				Add(bone2.WorldMat.Mul4x1(bone2.LocalMat.Mul4x1(pos)).Mul(1 - weight)).
-				Vec3()
-		case BDEF4:
-			temp := mgl32.Vec4{}
-			for i := 0; i < 4; i++ {
-				if weights[i] == 0 {
-					continue
-				}
-				bone := pm.Bones[bones[i]]
-				temp = temp.Add(bone.WorldMat.Mul4x1(bone.LocalMat.Mul4x1(pos)).Mul(weights[i]))
-			}
-			vertex.CurrPos = temp.Vec3()
-		default:
-			panic(fmt.Sprintf("unknown boneMethod %v", vertex.BoneMethod))
-		}
-		//if vertex.CurrPos[0] > 100 || vertex.CurrPos[1] > 100 || vertex.CurrPos[2] > 100 {
-		//	fmt.Println(vertex.CurrPos)
-		//}
+	// 修改每个顶点
+	for _, item := range pm.Vertices {
+		m := pm.applyBone(item, ms)
+		item.UpdatePosition = m.Mul4x1(item.Position.Add(item.MorphOffset).Vec4(1)).Vec3()
+		item.UpdateNormal = m.Mat3().Mul3x1(item.Normal).Normalize()
 	}
 }
 
-func (pm *PMX) dfs(curr int, mat mgl32.Mat4, childMap map[int][]int, posAndRotates map[int]*BonePosAndRotate) {
-	bone := pm.Bones[curr]
-	pos := bone.Position // 初始位置
-	rota := bone.Rotate
-	if val, ok := posAndRotates[curr]; ok { // 先旋转，再平移
-		if bone.Flags&BONE_FLAG_ROTATION_ENABLED > 0 {
-			rota = rota.Mul(val.Rotate)
-			//mat = val.Rotate.Mat4().Mul4(mat)
+func (pm *PMX) applyBone(item *Vertex, ms []mgl32.Mat4) mgl32.Mat4 {
+	switch item.BoneMethod {
+	case BDEF1:
+		idx := item.Bones[0]
+		return ms[idx]
+	case BDEF2:
+		idx1 := item.Bones[0]
+		idx2 := item.Bones[1]
+		w := item.Weights[0]
+		return ms[idx1].Mul(w).Add(ms[idx2].Mul(1 - w))
+	case BDEF4:
+		res := mgl32.Mat4{}
+		for i := 0; i < 4; i++ {
+			res = res.Add(ms[item.Bones[i]].Mul(item.Weights[i]))
 		}
-		if bone.Flags&BONE_FLAG_TRANSLATION_ENABLED > 0 {
-			pos = pos.Add(val.Translate) // 附加位置
-			//mat = mgl32.Translate3D(val.Translate[0], val.Translate[1], val.Translate[2]).Mul4(mat)
-		}
-	}
-	mat = mat.Mul4(mgl32.Translate3D(pos[0], pos[1], pos[2]))
-	mat = mat.Mul4(rota.Mat4())
-
-	bone.WorldMat = mat
-	for _, next := range childMap[curr] {
-		pm.dfs(next, mat, childMap, posAndRotates)
+		return res
+	default:
+		panic(fmt.Sprintf("unknown boneMethod %v", item.BoneMethod))
 	}
 }
 
@@ -1774,7 +1806,7 @@ func (pm *encPMX) encodeVertices(w io.Writer) (err error) {
 		return
 	}
 	for i := range pm.Vertices {
-		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].OldPos); err != nil {
+		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].Position); err != nil {
 			return
 		}
 		if err = binary.Write(w, binary.LittleEndian, &pm.Vertices[i].Normal); err != nil {
@@ -1981,10 +2013,10 @@ func (pm *encPMX) encodeBones(w io.Writer) (err error) {
 		if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].Position); err != nil {
 			return
 		}
-		if err = encodeInt(w, pm.Bones[i].Parent, pm.Header.SizeBoneIndex); err != nil {
+		if err = encodeInt(w, pm.Bones[i].ParentIndex, pm.Header.SizeBoneIndex); err != nil {
 			return
 		}
-		if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].MorphLevel); err != nil {
+		if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].TransformOrder); err != nil {
 			return
 		}
 		if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].Flags); err != nil {
@@ -2000,10 +2032,10 @@ func (pm *encPMX) encodeBones(w io.Writer) (err error) {
 			}
 		}
 		if pm.Bones[i].Flags&BONE_FLAG_BLEND_ROTATION != 0 || pm.Bones[i].Flags&BONE_FLAG_BLEND_TRANSLATION != 0 {
-			if err = encodeInt(w, pm.Bones[i].BlendTransformSourceBone, pm.Header.SizeBoneIndex); err != nil {
+			if err = encodeInt(w, pm.Bones[i].AppendBondIndex, pm.Header.SizeBoneIndex); err != nil {
 				return
 			}
-			if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].BlendTransformFrac); err != nil {
+			if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].AppendBoneWeight); err != nil {
 				return
 			}
 		}

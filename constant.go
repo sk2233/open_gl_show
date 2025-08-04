@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	BasePath   = "/Users/sky/Documents/go/open_gl_show/"
+	BasePath   = "/Users/wepie/Documents/github/open_gl_show/"
 	ResPath    = "res/"
 	ShaderPath = "shader/"
 	VertName   = ".vert"

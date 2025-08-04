@@ -8,8 +8,7 @@ import (
 	"testing"
 )
 
-// TODO 学习项目 加载大喜模型  与  骨骼，物理动画
-
+// mmd 默认不是在 openGL 坐标系下，需要按 z 轴反转
 func TestPmx(t *testing.T) {
 	window := NewWindow(1280, 720, "Test")
 
@@ -27,9 +26,10 @@ func TestPmx(t *testing.T) {
 	outlineShader.SetMat4("Model", mgl32.Ident4())
 
 	meshes, pmx := LoadPMX("星穹铁道—流萤/星穹铁道—流萤.pmx")
-	//vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画与表情动画
-	//morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
-	//boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
+	vmd := LoadVMD("ikuyo/ikuyo.vmd") // 只有骨骼动画
+	boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
+	vmd = LoadVMD("ikuyo/表情.vmd") // 只有表情动画
+	morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
 	camera := NewCamera()
 
 	time := uint32(0)
@@ -46,13 +46,13 @@ func TestPmx(t *testing.T) {
 			lastTime += 1.0 / 30
 		}
 		// 更新节点
-		pmx.ResetVertex()
-		//morphWeights := morphCalculator.Calculate(time)
-		//for idx, weight := range morphWeights {
-		//	pmx.ApplyMorph(idx, weight)
-		//}
-		//bonePosAndRotates := boneCalculator.Calculate(time)
-		//pmx.ApplyBone(bonePosAndRotates)
+		pmx.ResetBoneAndVertex()
+		morphWeights := morphCalculator.Calculate(time)
+		for idx, weight := range morphWeights {
+			pmx.ApplyMorph(idx, weight)
+		}
+		bonePosAndRotates := boneCalculator.Calculate(time)
+		pmx.ApplyBones(bonePosAndRotates)
 		shader.Use()
 
 		shader.SetF3("LightPos", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
@@ -86,6 +86,7 @@ func TestPmx(t *testing.T) {
 			if material.Flags&MATERIAL_FLAG_DRAWEDGE == 0 {
 				continue // 没有描边
 			}
+			continue // TODO TEST
 			gl.Enable(gl.CULL_FACE)
 			gl.CullFace(gl.FRONT) // 放大一点且只绘制反面
 			outlineShader.Use()

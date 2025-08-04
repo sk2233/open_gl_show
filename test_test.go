@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
@@ -38,4 +39,9 @@ func TestTest(t *testing.T) {
 		glfw.PollEvents()
 	}
 	glfw.Terminate()
+}
+
+func TestPmxL(t *testing.T) {
+	_, pmx := LoadPMX("pmx.pmx")
+	fmt.Println(pmx)
 }

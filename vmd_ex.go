@@ -23,7 +23,7 @@ type VMDHeader struct {
 
 type BoneFrame struct {
 	Bone       string        // 骨骼名字
-	Time       uint32        // 帧序号
+	Frame      uint32        // 帧序号
 	Translate  mgl32.Vec3    // 移动
 	RotateQuat mgl32.Quat    // 旋转 四元数
 	XCurve     [2]mgl32.Vec2 // X 曲线 控制点  0~1
@@ -34,25 +34,24 @@ type BoneFrame struct {
 
 type MorphFrame struct {
 	Morph  string  // morph动画名字
-	Time   uint32  // 帧序号
+	Frame  uint32  // 帧序号
 	Weight float32 // 权重
-
 }
 
 type CameraFrame struct {
-	Time      uint32     // 帧序号
+	Frame     uint32     // 帧序号
 	Distance  float32    // 距离
-	Translate [3]float32 // 移动
-	RotateXyz [3]float32 // 旋转xyz
+	Translate mgl32.Vec3 // 移动
+	RotateXyz mgl32.Vec3 // 旋转xyz
 	Curve     [24]byte
 	ViewAngle float32
 	Ortho     byte
 }
 
 type LightFrame struct {
-	Time      uint32 // 帧序号
-	Color     [3]float32
-	Direction [3]float32
+	Frame     uint32 // 帧序号
+	Color     mgl32.Vec3
+	Direction mgl32.Vec3
 }
 
 type VMD struct {
@@ -119,7 +118,7 @@ func (vm *VMD) decodeBoneFrames(r io.Reader) (err error) {
 			if vm.BoneFrames[i].Bone, err = decodeString2(r, 15); err != nil {
 				return
 			}
-			if err = binary.Read(r, binary.LittleEndian, &vm.BoneFrames[i].Time); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &vm.BoneFrames[i].Frame); err != nil {
 				return
 			}
 			if err = binary.Read(r, binary.LittleEndian, &vm.BoneFrames[i].Translate); err != nil {
@@ -153,7 +152,7 @@ func (vm *VMD) decodeBoneFrames(r io.Reader) (err error) {
 		}
 	}
 	sort.Slice(vm.BoneFrames, func(i, j int) bool {
-		return vm.BoneFrames[i].Time < vm.BoneFrames[j].Time
+		return vm.BoneFrames[i].Frame < vm.BoneFrames[j].Frame
 	})
 	return
 }
@@ -174,7 +173,7 @@ func (vm *VMD) decodeMorphFrames(r io.Reader) (err error) {
 			if vm.MorphFrames[i].Morph, err = decodeString2(r, 15); err != nil {
 				return
 			}
-			if err = binary.Read(r, binary.LittleEndian, &vm.MorphFrames[i].Time); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &vm.MorphFrames[i].Frame); err != nil {
 				return
 			}
 			if err = binary.Read(r, binary.LittleEndian, &vm.MorphFrames[i].Weight); err != nil {
@@ -183,7 +182,7 @@ func (vm *VMD) decodeMorphFrames(r io.Reader) (err error) {
 		}
 	}
 	sort.Slice(vm.MorphFrames, func(i, j int) bool {
-		return vm.MorphFrames[i].Time < vm.MorphFrames[i].Time
+		return vm.MorphFrames[i].Frame < vm.MorphFrames[i].Frame
 	})
 	return
 }
@@ -197,7 +196,7 @@ func (vm *VMD) decodeCameraFrames(r io.Reader) (err error) {
 		vm.CameraFrames = make([]*CameraFrame, numFrames)
 		for i := range vm.CameraFrames {
 			vm.CameraFrames[i] = &CameraFrame{}
-			if err = binary.Read(r, binary.LittleEndian, &vm.CameraFrames[i].Time); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &vm.CameraFrames[i].Frame); err != nil {
 				return
 			}
 			if err = binary.Read(r, binary.LittleEndian, &vm.CameraFrames[i].Distance); err != nil {
@@ -221,7 +220,7 @@ func (vm *VMD) decodeCameraFrames(r io.Reader) (err error) {
 		}
 	}
 	sort.Slice(vm.CameraFrames, func(i, j int) bool {
-		return vm.CameraFrames[i].Time < vm.CameraFrames[j].Time
+		return vm.CameraFrames[i].Frame < vm.CameraFrames[j].Frame
 	})
 	return
 }
@@ -235,7 +234,7 @@ func (vm *VMD) decodeLightFrames(r io.Reader) (err error) {
 		vm.LightFrames = make([]*LightFrame, numFrames)
 		for i := range vm.LightFrames {
 			vm.LightFrames[i] = &LightFrame{}
-			if err = binary.Read(r, binary.LittleEndian, &vm.LightFrames[i].Time); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &vm.LightFrames[i].Frame); err != nil {
 				return
 			}
 			if err = binary.Read(r, binary.LittleEndian, &vm.LightFrames[i].Color); err != nil {
@@ -247,7 +246,7 @@ func (vm *VMD) decodeLightFrames(r io.Reader) (err error) {
 		}
 	}
 	sort.Slice(vm.LightFrames, func(i, j int) bool {
-		return vm.LightFrames[i].Time < vm.LightFrames[j].Time
+		return vm.LightFrames[i].Frame < vm.LightFrames[j].Frame
 	})
 	return
 }
