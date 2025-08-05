@@ -25,7 +25,7 @@
 ![img_16.png](img_16.png)
 ## 支持动画
 <video controls="controls" width="100%" height="auto">
-      <source src="anim.mp4" type="video/mp4">
+      <source src="https://github.com/sk2233/open_gl_show/blob/main/anim.mp4" type="video/mp4">
 </video>
 
 > 分支：main
