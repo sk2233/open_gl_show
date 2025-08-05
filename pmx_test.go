@@ -4,7 +4,6 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
-	"math"
 	"testing"
 )
 
@@ -18,6 +17,7 @@ func TestPmx(t *testing.T) {
 	shader.SetMat4("uProj", projection)
 	shader.SetMat4("uModel", mgl32.Ident4())
 	shader.SetF3("uLightColor", mgl32.Vec3{1, 1, 1})
+	shader.SetF3("uLightDir", mgl32.Vec3{-0.5, -1.0, -0.5})
 	shader.SetI1("uTex", 0)
 	shader.SetI1("uSphereTex", 1)
 	shader.SetI1("uToonTex", 2)
@@ -32,6 +32,7 @@ func TestPmx(t *testing.T) {
 	boneCalculator := NewBoneCalculator(vmd.BoneFrames, pmx.Bones)
 	vmd = LoadVMD("ikuyo/表情.vmd") // 只有表情动画
 	morphCalculator := NewMorphCalculator(vmd.MorphFrames, pmx.Morphs)
+	PlayAudio("ikuyo/ikuyo!.wav")
 	camera := NewCamera()
 
 	time := uint32(0)
@@ -58,7 +59,7 @@ func TestPmx(t *testing.T) {
 		bonePosAndRotates := boneCalculator.Calculate(time)
 		pmx.ApplyBones(bonePosAndRotates)
 		shader.Use()
-		shader.SetF3("uLightDir", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
+		//shader.SetF3("uLightDir", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
 		shader.SetMat4("uView", camera.GetView())
 		edgeShader.Use()
 		edgeShader.SetMat4("uView", camera.GetView())

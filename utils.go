@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/faiface/beep/speaker"
+	"github.com/faiface/beep/wav"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"os"
 	"runtime"
+	"time"
 )
 
 func HandleErr(err error) {
@@ -71,4 +75,14 @@ func GetDataSize(dataType uint32) int {
 
 func Lerp(start, end, rate float32) float32 {
 	return start + (end-start)*rate
+}
+
+func PlayAudio(name string) {
+	file, err := os.Open(BasePath + ResPath + name)
+	HandleErr(err)
+	stream, format, err := wav.Decode(file)
+	HandleErr(err)
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	HandleErr(err)
+	speaker.Play(stream)
 }
