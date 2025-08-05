@@ -12,7 +12,7 @@ type Camera struct {
 }
 
 func NewCamera() *Camera {
-	return &Camera{Pos: mgl32.Vec3{1.4515511, 19.742188, -14.045877}, Dir: mgl32.Vec3{-0.19201341, -0.52491015, 1.6393855}}
+	return &Camera{Pos: mgl32.Vec3{3.5277052, 19.620964, 10.348308}, Dir: mgl32.Vec3{-0.74015903, -0.52491015, -1.4753312}.Normalize()}
 }
 
 func (c *Camera) GetView() mgl32.Mat4 {

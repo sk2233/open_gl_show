@@ -15,7 +15,7 @@ void main() {
     mat4 mv= uView *uModel;
     mat4 mvp= uProj * uView *uModel;
     gl_Position = mvp * vec4(inPos, 1.0);
-    vsPos = (mv * vec4(inPos, 1.0)).xyz;
+    vsPos = (uModel * vec4(inPos, 1.0)).xyz;
     vsNor = mat3(mvp) * inNor;
     vsUV = inUV;
 }

@@ -11,7 +11,8 @@ uniform vec3 uSpecular;
 uniform float uSpecularPower;
 uniform vec3 uAmbient;
 uniform vec3 uLightColor;
-uniform vec3 uLightDir;
+uniform vec3 uLightPos;
+uniform vec3 uViewPos;
 
 uniform int uTexMode;
 uniform sampler2D uTex;
@@ -23,8 +24,8 @@ uniform int uToonTexMode;
 uniform sampler2D uToonTex;
 
 void main() {
-	vec3 eyeDir = normalize(vsPos);
-	vec3 lightDir = normalize(-uLightDir);
+	vec3 eyeDir = normalize(uViewPos-vsPos);
+	vec3 lightDir = normalize(uLightPos-vsPos);
 	vec3 nor = normalize(vsNor);
 	float ln = dot(nor, lightDir);
 	ln = clamp(ln + 0.5, 0.0, 1.0);
