@@ -25,9 +25,15 @@ type Material struct {
 	AlphaCutoff              *float32
 	ToonTexture              *Texture
 	SpeTexture               *Texture
-	EdgeColor                *mgl32.Vec4
-	EdgeSize                 *float32
+	SpeMode                  int32
+	EdgeColor                mgl32.Vec4
+	EdgeSize                 float32
 	Flags                    MaterialFlags
+	Diffuse                  mgl32.Vec3 // RGB
+	Alpha                    float32    // A
+	Specular                 mgl32.Vec3 // RGB
+	SpecularPower            float32    // Power
+	Ambient                  mgl32.Vec3 // RGB
 }
 
 type Mesh struct {

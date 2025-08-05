@@ -83,7 +83,8 @@ const (
 type PmxMaterial struct {
 	Name          string
 	NameEN        string
-	Diffuse       mgl32.Vec4 // RGBA
+	Diffuse       mgl32.Vec3 // RGB
+	Alpha         float32    // A
 	Specular      mgl32.Vec3 // RGB
 	SpecularPower float32    // Power
 	Ambient       mgl32.Vec3 // RGB
@@ -153,7 +154,8 @@ type Bone struct {
 	Translate     mgl32.Vec3
 	Rotate        mgl32.Quat
 	GlobalInverse mgl32.Mat4
-	// 跟随父节点的变化   好像也没有用
+	// 跟随父节点的变化
+	Append            *Bone
 	IsAppendRotate    bool
 	IsAppendTranslate bool
 	AppendRotate      mgl32.Quat
@@ -166,9 +168,9 @@ type Bone struct {
 	Global        mgl32.Mat4
 
 	// 骨间数值调制的数值来源骨骼序号
-	AppendBondIndex int32
+	AppendIndex int32
 	// 骨间数值调制的比例 DST' = SRC * frac + DST * (1 - frac) ???
-	AppendBoneWeight float32
+	AppendWeight float32
 
 	Flags BoneFlags
 
@@ -186,6 +188,28 @@ type Bone struct {
 	ExternalParent int32 // 适用于 BONE_FLAG_EXTERNAL_PARENT=1
 
 	IKLink IKLink // IK链 适用于 BONE_FLAG_IK=1
+}
+
+func (b *Bone) UpdateAppendTransform() {
+	if b.Append == nil {
+		return
+	}
+	if b.IsAppendRotate {
+		if b.IsAppendLocal {
+			b.AppendRotate = b.Append.AnimRotate.Mul(b.Append.Rotate)
+		} else {
+			b.AppendRotate = b.Append.AppendRotate
+		}
+		b.AppendRotate = mgl32.QuatSlerp(mgl32.QuatIdent(), b.AppendRotate, b.AppendWeight)
+	}
+	if b.IsAppendTranslate {
+		if b.IsAppendLocal {
+			b.AppendTranslate = b.Append.AnimTranslate.Add(b.Append.Translate)
+		} else {
+			b.AppendTranslate = b.Append.AppendTranslate
+		}
+		b.AppendTranslate = b.AppendTranslate.Mul(b.AppendWeight)
+	}
 }
 
 func (b *Bone) UpdateLocalTransform() {
@@ -493,7 +517,7 @@ type PMX struct {
 	Vertices      []*Vertex
 	Faces         []uint32 // 3点1面
 	Textures      []string
-	Materials     []PmxMaterial
+	Materials     []*PmxMaterial
 	Bones         []*Bone // 骨骼
 	SortBones     []*Bone // 排序后的骨骼
 	Morphs        []*Morph
@@ -813,8 +837,9 @@ func (pm *PMX) decodeMaterials(r io.Reader) (err error) {
 	if n == 0 {
 		return
 	}
-	pm.Materials = make([]PmxMaterial, n)
+	pm.Materials = make([]*PmxMaterial, n)
 	for i := range pm.Materials {
+		pm.Materials[i] = &PmxMaterial{}
 		if pm.Materials[i].Name, err = decodeString(r, pm.Header.TextEncoding); err != nil {
 			return
 		}
@@ -822,6 +847,9 @@ func (pm *PMX) decodeMaterials(r io.Reader) (err error) {
 			return
 		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].Diffuse); err != nil {
+			return
+		}
+		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].Alpha); err != nil {
 			return
 		}
 		if err = binary.Read(r, binary.LittleEndian, &pm.Materials[i].Specular); err != nil {
@@ -885,7 +913,7 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 	for i := range pm.Bones {
 		pm.Bones[i] = &Bone{}
 		pm.Bones[i].TailBone = -1
-		pm.Bones[i].AppendBondIndex = -1
+		pm.Bones[i].AppendIndex = -1
 		pm.Bones[i].IKLink.EndBone = -1
 		pm.Bones[i].ExternalParent = -1
 
@@ -917,10 +945,10 @@ func (pm *PMX) decodeBones(r io.Reader) (err error) {
 			}
 		}
 		if pm.Bones[i].Flags&BONE_FLAG_BLEND_ROTATION != 0 || pm.Bones[i].Flags&BONE_FLAG_BLEND_TRANSLATION != 0 {
-			if pm.Bones[i].AppendBondIndex, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
+			if pm.Bones[i].AppendIndex, err = decodeInt(r, pm.Header.SizeBoneIndex); err != nil {
 				return
 			}
-			if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].AppendBoneWeight); err != nil {
+			if err = binary.Read(r, binary.LittleEndian, &pm.Bones[i].AppendWeight); err != nil {
 				return
 			}
 		}
@@ -1493,6 +1521,10 @@ func (pm *PMX) ApplyBones(posAndRotates map[int]*BonePosAndRotate) {
 		bond.AnimTranslate = item.Translate
 		bond.AnimRotate = item.Rotate
 	}
+	// 先更新 append 位移
+	for _, bone := range pm.SortBones {
+		bone.UpdateAppendTransform()
+	}
 	// 先更新本地位移
 	for _, bone := range pm.SortBones {
 		bone.UpdateLocalTransform()
@@ -2032,10 +2064,10 @@ func (pm *encPMX) encodeBones(w io.Writer) (err error) {
 			}
 		}
 		if pm.Bones[i].Flags&BONE_FLAG_BLEND_ROTATION != 0 || pm.Bones[i].Flags&BONE_FLAG_BLEND_TRANSLATION != 0 {
-			if err = encodeInt(w, pm.Bones[i].AppendBondIndex, pm.Header.SizeBoneIndex); err != nil {
+			if err = encodeInt(w, pm.Bones[i].AppendIndex, pm.Header.SizeBoneIndex); err != nil {
 				return
 			}
-			if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].AppendBoneWeight); err != nil {
+			if err = binary.Write(w, binary.LittleEndian, &pm.Bones[i].AppendWeight); err != nil {
 				return
 			}
 		}

@@ -40,6 +40,9 @@ func LoadPMX(name string) ([]*Mesh, *PMX) {
 		bone.Rotate = mgl32.QuatIdent()
 		bone.Global = mgl32.Translate3D(bone.Position[0], bone.Position[1], -bone.Position[2])
 		bone.GlobalInverse = bone.Global.Inv()
+		if bone.AppendIndex >= 0 {
+			bone.Append = pmx.Bones[bone.AppendIndex]
+		}
 		bone.IsAppendRotate = (bone.Flags & BONE_FLAG_BLEND_ROTATION) > 0
 		bone.IsAppendTranslate = (bone.Flags & BONE_FLAG_BLEND_TRANSLATION) > 0
 		bone.IsAppendLocal = (bone.Flags & BONE_FLAG_BLEND_LOCAL) > 0
@@ -65,11 +68,18 @@ func LoadPMX(name string) ([]*Mesh, *PMX) {
 			Name: material.Name,
 			Vao:  NewVao(data, gl.TRIANGLES, 3, 3, 2),
 			Material: &Material{
-				BaseTexture: loadPMXTexture(material.Texture, pmx, subPath),
-				ToonTexture: loadPMXTexture(material.ToonTexture, pmx, subPath),
-				SpeTexture:  loadPMXTexture(material.SpTexture, pmx, subPath),
-				EdgeColor:   Ptr(material.EdgeColor),
-				EdgeSize:    Ptr(material.EdgeSize),
+				Diffuse:       material.Diffuse,
+				Alpha:         material.Alpha,
+				Specular:      material.Specular,
+				SpecularPower: material.SpecularPower,
+				Ambient:       material.Ambient,
+				SpeMode:       int32(material.SpMode),
+				BaseTexture:   loadPMXTexture(material.Texture, pmx, subPath, false),
+				// 查找表需要 clampEdge
+				ToonTexture: loadPMXTexture(material.ToonTexture, pmx, subPath, true),
+				SpeTexture:  loadPMXTexture(material.SpTexture, pmx, subPath, false),
+				EdgeColor:   material.EdgeColor,
+				EdgeSize:    material.EdgeSize,
 				Flags:       material.Flags,
 			},
 			Faces:    face,
@@ -79,12 +89,21 @@ func LoadPMX(name string) ([]*Mesh, *PMX) {
 	return meshes, pmx
 }
 
-func loadPMXTexture(idx int32, pmx *PMX, subPath string) *Texture {
+func loadPMXTexture(idx int32, pmx *PMX, subPath string, clampEdge bool) *Texture {
 	if idx < 0 || idx >= int32(len(pmx.Textures)) {
 		return nil
 	}
 	name := strings.ReplaceAll(pmx.Textures[idx], "\\", "/")
-	return LoadTexture(subPath + name)
+	if clampEdge {
+		return LoadTextureWithSampler(subPath+name, &SamplerData{
+			MinFilter: gl.NEAREST,
+			MagFilter: gl.NEAREST,
+			WrapS:     gl.CLAMP_TO_EDGE,
+			WrapT:     gl.CLAMP_TO_EDGE,
+		})
+	} else {
+		return LoadTexture(subPath + name)
+	}
 }
 
 func loadVec(vs []*Vertex, faces []uint32) []float32 {

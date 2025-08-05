@@ -39,6 +39,11 @@ func (s *Shader) SetF3(name string, val mgl32.Vec3) {
 	gl.Uniform3f(uniformLoc, val[0], val[1], val[2])
 }
 
+func (s *Shader) SetF2(name string, val mgl32.Vec2) {
+	uniformLoc := s.getUniformLoc(name)
+	gl.Uniform2f(uniformLoc, val[0], val[1])
+}
+
 func (s *Shader) SetF1(name string, val float32) {
 	uniformLoc := s.getUniformLoc(name)
 	gl.Uniform1f(uniformLoc, val)

@@ -36,6 +36,4 @@ void main() {
     vec3 rimColor = vec3(smoothstep(0.6, 1, f));
 
     FragColor = vec4(baseColor+speColor*0.5+rimColor*0.3, 1.0f);
-    // TODO TEST
-    FragColor = texture(BaseTex, TexCoord);
 }
