@@ -23,3 +23,9 @@
 ## 修改后的渲染效果
 ![img_12.png](img_12.png)
 ![img_16.png](img_16.png)
+## 支持动画
+<video controls="controls" width="100%" height="auto">
+      <source src="anim.mp4" type="video/mp4">
+</video>
+
+> 分支：main

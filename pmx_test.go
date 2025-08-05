@@ -4,6 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
+	"math"
 	"testing"
 )
 
@@ -59,7 +60,7 @@ func TestPmx(t *testing.T) {
 		bonePosAndRotates := boneCalculator.Calculate(time)
 		pmx.ApplyBones(bonePosAndRotates)
 		shader.Use()
-		//shader.SetF3("uLightDir", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
+		shader.SetF3("uLightDir", mgl32.Vec3{30 * float32(math.Sin(glfw.GetTime())), 30, 30 * float32(math.Cos(glfw.GetTime()))})
 		shader.SetMat4("uView", camera.GetView())
 		edgeShader.Use()
 		edgeShader.SetMat4("uView", camera.GetView())
