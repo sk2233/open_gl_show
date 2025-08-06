@@ -1,5 +1,5 @@
 # 使用 OpenGL 的渲染测试
-使用 OpenGL 进行 PBR 卡通（三渲二）渲染，支持 glTF 模型与 mmd 的 pmx 模型与其 vmd 动画播放
+使用 OpenGL 进行 PBR，卡通（三渲二）渲染，支持 glTF 模型与 mmd 的 pmx 模型与其 vmd 动画播放
 ## 仅使用贴图颜色
 ![img.png](img.png)
 > 分支：base
